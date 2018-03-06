@@ -187,6 +187,8 @@ const BaseConfiguration: IConfigurationValues = {
     "language.ocaml.languageServer.arguments": ["--stdio"],
     "language.ocaml.languageServer.configuration": ocamlAndReasonConfiguration,
 
+    "language.typescript.languageServer.command": "typescript-language-server",
+    "language.typescript.languageServer.arguments": ["--stdio"],
     "language.typescript.completionTriggerCharacters": [".", "/", "\\"],
     "language.typescript.textMateGrammar": {
         ".ts": path.join(
