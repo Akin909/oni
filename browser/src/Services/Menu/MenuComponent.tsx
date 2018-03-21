@@ -6,7 +6,6 @@ import { AutoSizer, List } from "react-virtualized"
 
 import * as Oni from "oni-api"
 
-import { styled } from "../../UI/components/common"
 import { HighlightTextByIndex } from "./../../UI/components/HighlightText"
 import { Icon, IconSize } from "./../../UI/Icon"
 
@@ -17,7 +16,7 @@ import * as ActionCreators from "./MenuActionCreators"
 import * as State from "./MenuState"
 import { render as renderPinnedIcon } from "./PinnedIconView"
 
-import { withProps } from "./../../UI/components/common"
+import styled, { withProps, fontSizeSmall, boxShadow } from "./../../UI/components/common"
 
 import { TextInputView } from "./../../UI/components/LightweightText"
 
@@ -35,14 +34,70 @@ export interface IMenuProps {
     maxItemsToShow: number
 }
 
+const MenuBackground = styled.div`
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    bottom: 0px;
+    right: 0px;
+    background-color: rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: auto;
+`
+
 const MenuStyleWrapper = styled.div`
+    position: relative;
+    margin-top: 16px;
+    padding: 8px;
+    width: 75%;
+    max-width: 900px;
     background-color: ${props => props.theme["menu.background"]};
     color: ${props => props.theme["menu.foreground"]};
+    ${boxShadow};
 
     & input {
         color: ${props => props.theme["menu.foreground"]};
-        background-color: rgba(0, 0, 0.2);
+        border: 0px;
+        background-color: rgba(0, 0, 0, 0.2);
+        font-size: 1.1em;
+        box-sizing: border-box;
+        width: 100%;
+        padding: 8px;
+        outline: none;
     }
+`
+
+interface IFooterProps {
+    isLoading: boolean
+}
+const Footer = withProps<IFooterProps>(styled.div)`
+    text-align: center;
+    width: 100%;
+    transition-property: transform, opacity;
+    transition-duration: 0.5s;
+    position: absolute;
+    bottom: 0px;
+    height: 3em;
+    margin-left: -8px;
+    ${boxShadow};
+
+    // Put behind items / menu element
+    z-index: -1;
+
+    opacity: ${props => (props.isLoading ? "1" : "0")};
+    transform: ${props => (props.isLoading ? "translateY(100%)" : "translateY(0%)")};
+`
+
+interface ILoadingSpinnerProps {
+    isLoading: boolean
+}
+const LoadingSpinner = withProps<ILoadingSpinnerProps>(styled.div)`
+    line-height: 3em;
+    height: 3em;
+
+    opacity: ${props => (props.isLoading ? "1" : "0")};
 `
 
 export class MenuView extends React.PureComponent<IMenuProps, {}> {
@@ -55,33 +110,31 @@ export class MenuView extends React.PureComponent<IMenuProps, {}> {
         }
     }
 
+    public rowRenderer = (props: { key: string; index: number; style: React.CSSProperties }) => {
+        const item = this.props.items[props.index]
+        return (
+            <div style={props.style} key={props.key}>
+                <MenuItem
+                    {...item as any}
+                    key={props.key}
+                    filterText={this.props.filterText}
+                    isSelected={props.index === this.props.selectedIndex}
+                    onClick={() => this.props.onSelect(props.index)}
+                />
+            </div>
+        )
+    }
+
     public render(): null | JSX.Element {
         if (!this.props.visible) {
             return null
         }
 
-        const rowRenderer = (props: { key: string; index: number; style: React.CSSProperties }) => {
-            const item = this.props.items[props.index]
-            return (
-                <div style={props.style} key={props.key}>
-                    <MenuItem
-                        {...item as any}
-                        key={props.key}
-                        filterText={this.props.filterText}
-                        isSelected={props.index === this.props.selectedIndex}
-                        onClick={() => this.props.onSelect(props.index)}
-                    />
-                </div>
-            )
-        }
-
-        const footerClassName = "footer " + (this.props.isLoading ? "loading" : "loaded")
-
         const height =
             Math.min(this.props.items.length, this.props.maxItemsToShow) * this.props.rowHeight
 
         return (
-            <div className="menu-background enable-mouse" onClick={this.handleHide}>
+            <MenuBackground onClick={this.handleHide}>
                 <MenuStyleWrapper
                     className="menu"
                     innerRef={elem => {
@@ -99,23 +152,23 @@ export class MenuView extends React.PureComponent<IMenuProps, {}> {
                                         height={height}
                                         rowCount={this.props.items.length}
                                         rowHeight={this.props.rowHeight}
-                                        rowRenderer={rowRenderer}
+                                        rowRenderer={this.rowRenderer}
                                     />
                                 )}
                             </AutoSizer>
                         </div>
                     </div>
-                    <div className={footerClassName}>
-                        <div className="loading-spinner">
+                    <Footer isLoading={this.props.isLoading}>
+                        <LoadingSpinner isLoading={this.props.isLoading}>
                             <Icon
                                 name="circle-o-notch"
                                 className=" fa-spin"
                                 size={IconSize.Large}
                             />
-                        </div>
-                    </div>
+                        </LoadingSpinner>
+                    </Footer>
                 </MenuStyleWrapper>
-            </div>
+            </MenuBackground>
         )
     }
 
@@ -183,6 +236,69 @@ export const MenuContainer = () => {
     )
 }
 
+export interface IMenuItemWrapperProps {
+    isSelected: boolean
+}
+
+const menuItemHighlightBackgroundColor = "background-color: rgba(0, 0, 0, 0.1);"
+const MenuItemWrapper = withProps<IMenuItemWrapperProps>(styled.div)`
+    position: absolute;
+    top: 4px;
+    left: 0px;
+    right: 4px;
+    bottom: 4px;
+
+    border-left: ${props =>
+        props.isSelected
+            ? "4px solid " + props.theme["highlight.mode.normal.background"]
+            : "4px solid transparent"};
+    ${props => (props.isSelected ? menuItemHighlightBackgroundColor : "")};
+    :hover {
+        ${menuItemHighlightBackgroundColor}
+    }
+
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    user-select: none;
+    -webkit-user-drag:none;
+    cursor: pointer;
+    font-size: 1em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    & .fa:not(.fa-spin) {
+        padding-left: 4px;
+        padding-right: 4px;
+    }
+`
+
+const Label = styled(HighlightTextByIndex)`
+    margin: 4px;
+    padding-right: 8px;
+`
+
+const DetailHighlight = styled.span`
+    font-weight: bold;
+    color: #757575;
+`
+
+const LabelHighlight = styled.span`
+    font-weight: bold;
+    color: ${props => props.theme["highlight.mode.normal.background"]};
+`
+
+const Detail = styled(HighlightTextByIndex)`
+    ${fontSizeSmall};
+    color: ${props => props.theme["menu.detail"]};
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 8px;
+`
+
 export interface IMenuItemProps {
     icon?: string | JSX.Element
     isSelected: boolean
@@ -197,82 +313,48 @@ export interface IMenuItemProps {
     height: number
 }
 
-export interface IMenuItemWrapperProps {
-    isSelected: boolean
-}
-
-const MenuItemWrapper = withProps<IMenuItemWrapperProps>(styled.div)`
-    position: absolute;
-    top: 4px;
-    left: 0px;
-    right: 4px;
-    bottom: 4px;
-
-    border-left: ${props =>
-        props.isSelected
-            ? "4px solid " + props.theme["highlight.mode.normal.background"]
-            : "4px solid transparent"};
-
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-
-    user-select: none;
-    -webkit-user-drag:none;
-    cursor: pointer;
-    font-size: 1em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-`
-
-export class MenuItem extends React.PureComponent<IMenuItemProps, {}> {
-    public render(): JSX.Element {
-        const className = "item" + (this.props.isSelected ? " selected" : "")
-
-        return (
-            <MenuItemWrapper
-                isSelected={this.props.isSelected}
-                className={className}
-                onClick={() => this.props.onClick()}
-                style={{ height: this.props.height + "px" }}
-            >
-                {this.getIcon()}
-                <HighlightTextByIndex
-                    className="label"
-                    text={this.props.label}
-                    highlightIndices={this.props.labelHighlights}
-                    highlightComponent={LabelHighlight}
-                />
-                <HighlightTextByIndex
-                    className="detail"
-                    text={this.props.detail}
-                    highlightIndices={this.props.detailHighlights}
-                    highlightComponent={DetailHighlight}
-                />
-                {this.props.additionalComponent}
-                {renderPinnedIcon({ pinned: this.props.pinned })}
-            </MenuItemWrapper>
+export const MenuItem = ({
+    icon,
+    isSelected,
+    filterText,
+    label,
+    labelHighlights,
+    detail,
+    detailHighlights,
+    pinned,
+    additionalComponent,
+    onClick,
+    height,
+}: IMenuItemProps) => {
+    const iconToUse = icon ? (
+        typeof icon === "string" ? (
+            <Icon name={icon} />
+        ) : (
+            icon
         )
-    }
+    ) : (
+        <Icon name={"default"} />
+    )
 
-    private getIcon(): any {
-        if (!this.props.icon) {
-            return <Icon name={"default"} />
-        }
-        if (typeof this.props.icon === "string") {
-            return <Icon name={this.props.icon} />
-        }
-        return this.props.icon
-    }
+    return (
+        <MenuItemWrapper
+            isSelected={isSelected}
+            onClick={() => onClick()}
+            style={{ height: height + "px" }}
+        >
+            {iconToUse}
+            <Label
+                text={label}
+                highlightIndices={labelHighlights}
+                highlightComponent={LabelHighlight}
+            />
+            <Detail
+                text={detail}
+                highlightIndices={detailHighlights}
+                highlightComponent={DetailHighlight}
+            />
+            {additionalComponent}
+            {renderPinnedIcon({ pinned })}
+        </MenuItemWrapper>
+    )
 }
-
-const LabelHighlight = styled.span`
-    font-weight: bold;
-    color: ${props => props.theme["highlight.mode.normal.background"]};
-`
-
-const DetailHighlight = styled.span`
-    font-weight: bold;
-    color: #757575;
-`

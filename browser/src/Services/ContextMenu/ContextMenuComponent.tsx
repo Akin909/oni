@@ -12,13 +12,13 @@ import * as Oni from "oni-api"
 
 import { IMenus } from "./../Menu/MenuState"
 
-import { styled } from "../../UI/components/common"
 import { Arrow, ArrowDirection } from "./../../UI/components/Arrow"
 import { HighlightText } from "./../../UI/components/HighlightText"
 import { QuickInfoDocumentation } from "./../../UI/components/QuickInfo"
 import { Icon } from "./../../UI/Icon"
 
 import { ContextMenuState } from "./ContextMenu"
+import styled from "../../UI/components/common"
 
 export interface IContextMenuItem {
     label: string
@@ -98,6 +98,16 @@ export interface IContextMenuItemProps extends Oni.Menu.MenuOption {
     highlightColor?: string
 }
 
+const Label = styled(HighlightText)`
+    flex: 1 0 auto;
+    min-width: 100px;
+    margin-left: 8px;
+`
+
+const Highlight = styled.span`
+    text-decoration: underline;
+`
+
 export class ContextMenuItem extends React.PureComponent<IContextMenuItemProps, {}> {
     public render(): JSX.Element {
         let className = "entry"
@@ -120,8 +130,7 @@ export class ContextMenuItem extends React.PureComponent<IContextMenuItemProps, 
                         <Icon name={this.props.icon} />
                     </span>
                     <Arrow direction={ArrowDirection.Right} size={5} color={arrowColor} />
-                    <HighlightText
-                        className="label"
+                    <Label
                         highlightComponent={Highlight}
                         highlightText={this.props.base}
                         text={this.props.label}
@@ -132,10 +141,6 @@ export class ContextMenuItem extends React.PureComponent<IContextMenuItemProps, 
         )
     }
 }
-
-const Highlight = styled.span`
-    text-decoration: underline;
-`
 
 export interface IContextMenuDocumentationProps {
     documentation: string
