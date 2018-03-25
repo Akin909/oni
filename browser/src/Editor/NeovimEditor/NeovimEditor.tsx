@@ -345,6 +345,9 @@ export class NeovimEditor extends Editor implements IEditor {
 
         this.trackDisposable(
             this._windowManager.onWindowStateChanged.subscribe(tabPageState => {
+                if (!tabPageState || !tabPageState.inactiveWindows) {
+                    return
+                }
                 const filteredTabState = tabPageState.inactiveWindows.filter(w => !!w)
                 const inactiveIds = filteredTabState.map(w => w.windowNumber)
 
