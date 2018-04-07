@@ -1,3 +1,4 @@
-function printHello()
-  vim.api.nvim_call_function()
+local nvim = vim.api -- luacheck: ignore
+local function manageSession()
+  return 5
 end

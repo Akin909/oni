@@ -186,24 +186,18 @@ endfunction
 
 
 function! CurrentLineInfo()
-  lua << EOF
-  local linenr = vim.api.nvim_win_get_cursor(0)[1]
-  local curline = vim.api.nvim_buf_get_lines(
-  0, linenr, linenr + 1, false)[1]
-  print(string.format("Current line [%d] has %d bytes",
-  linenr, #curline))
-  EOF
+lua << EOF
+local linenr = vim.api.nvim_win_get_cursor(0)[1]
+local curline = vim.api.nvim_buf_get_lines(
+0, linenr, linenr + 1, false)[1]
+print(string.format("Current line [%d] has %d bytes",linenr, #curline))
+EOF
 endfunction
 
 call CurrentLineInfo()
 
-" func! s:sessionManagement()
-" FIXME: Lua Module is not in neovim's rtp
-"   call luaeval('require("session").printHello()')
-" endfunc
-
-" call s:sessionManagement()
-
+"FIXME: Lua Module is not in neovim's rtp
+command! -nargs=0 OniManageSession lua require("session").printHello()
 
 " Window navigation excerpt from:
 " http://blog.paulrugelhiatt.com/vim/2014/10/31/vim-tip-automatically-create-window-splits-with-movement.html
