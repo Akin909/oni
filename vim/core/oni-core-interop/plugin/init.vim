@@ -194,20 +194,20 @@ print(string.format("Current line [%d] has %d bytes",linenr, #curline))
 EOF
 endfunction
 
-command! -nargs=0 OniPersistSession lua require("session").persist("oni_init_session")
-command! -nargs=0 OniManageSession lua require("session").manage()
 command! -nargs=0 OniListSessions lua require("session").list()
+command! -nargs=0 OniManageSession lua require("session").manage()
+command! -nargs=0 OniPersistSession lua require("session").persist("oni_init_session")
 
 " Window navigation excerpt from:
 " http://blog.paulrugelhiatt.com/vim/2014/10/31/vim-tip-automatically-create-window-splits-with-movement.html
 
-function! s:GotoNextWindow( direction )
+function! s:GotoNextWindow(direction)
   let l:prevWinNr = winnr()
   execute 'wincmd' a:direction
   return winnr() != l:prevWinNr
 endfunction
 
-function! OniNextWindow( direction )
+function! OniNextWindow(direction)
   if ! s:GotoNextWindow(a:direction)
     if a:direction == 'h'
       call OniCommand("window.moveLeft")
