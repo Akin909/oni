@@ -194,10 +194,8 @@ print(string.format("Current line [%d] has %d bytes",linenr, #curline))
 EOF
 endfunction
 
-call CurrentLineInfo()
-
 "FIXME: Lua Module is not in neovim's rtp
-command! -nargs=0 OniManageSession lua require("session").printHello()
+command! -nargs=0 OniManageSession lua require("session").manageSession()
 
 " Window navigation excerpt from:
 " http://blog.paulrugelhiatt.com/vim/2014/10/31/vim-tip-automatically-create-window-splits-with-movement.html
