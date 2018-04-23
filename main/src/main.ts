@@ -10,6 +10,7 @@ import * as Log from "./Log"
 import { buildDockMenu, buildMenu } from "./menu"
 import { makeSingleInstance } from "./ProcessLifecycle"
 import { moveToNextOniInstance } from "./WindowManager"
+import createTouchBarMenu from "./touchbar"
 
 global["getLogs"] = Log.getAllLogs // tslint:disable-line no-string-literal
 
@@ -200,6 +201,13 @@ export function createWindow(
 
         if (delayedEvent) {
             currentWindow.webContents.send(delayedEvent.evt, ...delayedEvent.cmd)
+        }
+    })
+
+    ipcMain.on("update-buffers", (_evt, buffers: string[]) => {
+        console.log("buffers: ", buffers)
+        if (currentWindow) {
+            createTouchBarMenu(currentWindow, buffers)
         }
     })
 

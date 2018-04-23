@@ -4,6 +4,7 @@
  * IEditor implementation for Neovim
  */
 
+import { sep } from "path"
 import * as React from "react"
 
 import "rxjs/add/observable/defer"
@@ -1145,7 +1146,19 @@ export class NeovimEditor extends Editor implements IEditor {
         this._bufferLayerManager.notifyBufferFileTypeChanged(buf)
     }
 
+    private _updateTouchbarMenu = (evt: BufferEventContext) => {
+        const bufferNames = evt.existingBuffers.map(b =>
+            b.bufferFullPath
+                .split(sep)
+                .slice(-2)
+                .join(sep),
+        )
+
+        ipcRenderer.send("update-buffers", bufferNames)
+    }
+
     private async _onBufEnter(evt: BufferEventContext): Promise<void> {
+        this._updateTouchbarMenu(evt)
         const buf = this._bufferManager.updateBufferFromEvent(evt.current)
         this._bufferManager.populateBufferList(evt)
         this._workspace.autoDetectWorkspace(buf.filePath)
