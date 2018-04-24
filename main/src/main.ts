@@ -96,6 +96,12 @@ ipcMain.on("open-oni-window", () => {
     createWindow([], process.cwd())
 })
 
+ipcMain.on("update-buffers", (_evt, buffers) => {
+    if (activeWindow()) {
+        createTouchBarMenu(activeWindow(), buffers)
+    }
+})
+
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let windows: BrowserWindow[] = []
@@ -201,12 +207,6 @@ export function createWindow(
 
         if (delayedEvent) {
             currentWindow.webContents.send(delayedEvent.evt, ...delayedEvent.cmd)
-        }
-    })
-
-    ipcMain.on("update-buffers", (_evt, buffers) => {
-        if (currentWindow) {
-            createTouchBarMenu(currentWindow, buffers)
         }
     })
 

@@ -1,7 +1,10 @@
-import { BrowserWindow, TouchBar, TouchBarSegmentedControl } from "electron"
+import { BrowserWindow, TouchBar } from "electron"
 // import * as flatten from "lodash/flatten"
 
-const { TouchBarButton /* , TouchBarLabel */ /* , TouchBarSpacer */ } = TouchBar
+const {
+    TouchBarButton,
+    TouchBarSegmentedControl /* , TouchBarLabel */ /* , TouchBarSpacer */,
+} = TouchBar
 
 // const dummyBuffers = [{ name: "file1.txt" }, { name: "file2.txt" }, " name: name:file3.txt", "file4.txt"]
 
