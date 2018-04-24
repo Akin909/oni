@@ -1,4 +1,4 @@
-import { BrowserWindow, TouchBar /* , TouchBarScrubber */ } from "electron"
+import { BrowserWindow, TouchBar, TouchBarScrubber } from "electron"
 import * as flatten from "lodash/flatten"
 
 const { TouchBarButton /* , TouchBarLabel */, TouchBarSpacer } = TouchBar
@@ -24,25 +24,27 @@ const createTouchBarMenu = (browserWindow: BrowserWindow, buffers: Buffers[]) =>
     // List needs to be scrollable
     const onClick = (filePath: string) => browserWindow.webContents.send("open-file", filePath)
 
-    // const scrubber = new TouchBarScrubber({
-    //     items: dummyBuffers.map(buffer => ({ label: buffer })),
-    //     highlight: null,
-    //     selectedStyle: null,
-    //     overlayStyle: null,
-    //     showArrowButtons: false,
-    //     mode: "free",
-    //     continuous: true,
-    //     select: selectedIndex => {
-    //         console.log(selectedIndex)
-    //     },
-    // })
+    const scrubber = new TouchBarScrubber({
+        items: buffers.map(buffer => ({ label: buffer.name })),
+        highlight: null,
+        selectedStyle: null,
+        overlayStyle: null,
+        showArrowButtons: false,
+        mode: "free",
+        continuous: true,
+        select: selectedIndex => {
+            onClick(buffers[selectedIndex].fullPath)
+        },
+    })
 
     const arrangement = flatten(
         buttons(buffers, onClick).map(button => [button, new TouchBarSpacer({ size: "small" })]),
     )
 
-    // const touchBar = new TouchBar({ items: [scrubber] })
-    const touchBar = new TouchBar({ items: arrangement })
+    console.log("arrangement: ", arrangement)
+
+    const touchBar = new TouchBar({ items: [scrubber] })
+    // const touchBar = new TouchBar({ items: arrangement })
 
     browserWindow.setTouchBar(touchBar)
 }
