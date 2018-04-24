@@ -1,9 +1,9 @@
-import { BrowserWindow, TouchBar, TouchBarScrubber } from "electron"
-import * as flatten from "lodash/flatten"
+import { BrowserWindow, TouchBar, TouchBarSegmentedControl } from "electron"
+// import * as flatten from "lodash/flatten"
 
-const { TouchBarButton /* , TouchBarLabel */, TouchBarSpacer } = TouchBar
+const { TouchBarButton /* , TouchBarLabel */ /* , TouchBarSpacer */ } = TouchBar
 
-// const dummyBuffers = [{ name: "file1.txt" }, "file2.txt", "file3.txt", "file4.txt"]
+// const dummyBuffers = [{ name: "file1.txt" }, { name: "file2.txt" }, " name: name:file3.txt", "file4.txt"]
 
 interface Buffers {
     name: string
@@ -24,26 +24,36 @@ const createTouchBarMenu = (browserWindow: BrowserWindow, buffers: Buffers[]) =>
     // List needs to be scrollable
     const onClick = (filePath: string) => browserWindow.webContents.send("open-file", filePath)
 
-    const scrubber = new TouchBarScrubber({
-        items: buffers.map(buffer => ({ label: buffer.name })),
-        highlight: null,
-        selectedStyle: null,
-        overlayStyle: null,
-        showArrowButtons: false,
-        mode: "free",
-        continuous: true,
-        select: selectedIndex => {
-            onClick(buffers[selectedIndex].fullPath)
+    // const scrubber = new TouchBarScrubber({
+    //     items: buffers.map(buffer => ({ label: buffer.name })),
+    //     highlight: null,
+    //     selectedStyle: null,
+    //     overlayStyle: null,
+    //     showArrowButtons: false,
+    //     mode: "free",
+    //     continuous: true,
+    //     select: selectedIndex => {
+    //         const buffer = buffers[selectedIndex]
+    //         onClick(buffer.fullPath)
+    //     },
+    // })
+    //
+    // const arrangement = flatten(
+    //     buttons(buffers, onClick).map(button => [button, new TouchBarSpacer({ size: "small" })]),
+    // )
+
+    const segmentedControl = new TouchBarSegmentedControl({
+        segmentStyle: "automatic",
+        mode: "single",
+        segments: buttons(buffers, onClick),
+        change: selectedIndex => {
+            const buffer = buffers[selectedIndex]
+            onClick(buffer.fullPath)
         },
     })
 
-    const arrangement = flatten(
-        buttons(buffers, onClick).map(button => [button, new TouchBarSpacer({ size: "small" })]),
-    )
-
-    console.log("arrangement: ", arrangement)
-
-    const touchBar = new TouchBar({ items: [scrubber] })
+    const touchBar = new TouchBar({ items: [segmentedControl] })
+    // const touchBar = new TouchBar({ items: [scrubber] })
     // const touchBar = new TouchBar({ items: arrangement })
 
     browserWindow.setTouchBar(touchBar)

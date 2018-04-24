@@ -204,8 +204,7 @@ export function createWindow(
         }
     })
 
-    ipcMain.on("update-buffers", (_evt, buffers: string[]) => {
-        console.log("buffers: ", buffers)
+    ipcMain.on("update-buffers", (_evt, buffers) => {
         if (currentWindow) {
             createTouchBarMenu(currentWindow, buffers)
         }
