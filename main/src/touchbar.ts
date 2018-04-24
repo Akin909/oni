@@ -1,24 +1,28 @@
-import { BrowserWindow, TouchBar, TouchBarScrubber } from "electron"
+import { BrowserWindow, TouchBar /* , TouchBarScrubber */ } from "electron"
 import * as flatten from "lodash/flatten"
 
 const { TouchBarButton /* , TouchBarLabel */, TouchBarSpacer } = TouchBar
 
-const dummyBuffers = ["file1.txt", "file2.txt", "file3.txt", "file4.txt"]
+// const dummyBuffers = [{ name: "file1.txt" }, "file2.txt", "file3.txt", "file4.txt"]
 
-const buttons = (buffers: string[]) =>
+interface Buffers {
+    name: string
+    fullPath: string
+}
+
+const buttons = (buffers: Buffers[], onClick: (buffer: string) => void) =>
     buffers.map(
         buffer =>
             new TouchBarButton({
-                label: buffer,
+                label: buffer.name,
                 backgroundColor: "blue",
-                click: () => {
-                    console.log("Clicked", buffer) // tslint:disable-line
-                },
+                click: () => onClick(buffer.fullPath),
             }),
     )
 
-const createTouchBarMenu = (browserWindow: BrowserWindow, buffers = dummyBuffers) => {
+const createTouchBarMenu = (browserWindow: BrowserWindow, buffers: Buffers[]) => {
     // List needs to be scrollable
+    const onClick = (filePath: string) => browserWindow.webContents.send("open-file", filePath)
 
     // const scrubber = new TouchBarScrubber({
     //     items: dummyBuffers.map(buffer => ({ label: buffer })),
@@ -34,7 +38,7 @@ const createTouchBarMenu = (browserWindow: BrowserWindow, buffers = dummyBuffers
     // })
 
     const arrangement = flatten(
-        buttons(buffers).map(button => [button, new TouchBarSpacer({ size: "small" })]),
+        buttons(buffers, onClick).map(button => [button, new TouchBarSpacer({ size: "small" })]),
     )
 
     // const touchBar = new TouchBar({ items: [scrubber] })

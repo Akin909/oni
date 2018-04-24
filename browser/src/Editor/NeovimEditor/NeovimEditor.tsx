@@ -1147,12 +1147,13 @@ export class NeovimEditor extends Editor implements IEditor {
     }
 
     private _updateTouchbarMenu = (evt: BufferEventContext) => {
-        const bufferNames = evt.existingBuffers.map(b =>
-            b.bufferFullPath
+        const bufferNames = evt.existingBuffers.map(b => ({
+            name: b.bufferFullPath
                 .split(sep)
                 .slice(-2)
                 .join(sep),
-        )
+            fullPath: b.bufferFullPath,
+        }))
 
         ipcRenderer.send("update-buffers", bufferNames)
     }
