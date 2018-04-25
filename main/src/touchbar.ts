@@ -2,12 +2,11 @@ import { BrowserWindow, TouchBar } from "electron"
 // import * as flatten from "lodash/flatten"
 
 const {
+    // TouchBarSegmentedControl,
     TouchBarScrubber,
     // TouchBarButton,
-    // TouchBarSegmentedControl , TouchBarLabel , TouchBarSpacer ,
+    // TouchBarLabel , TouchBarSpacer ,
 } = TouchBar
-
-// const dummyBuffers = [{ name: "file1.txt" }, { name: "file2.txt" }, " name: name:file3.txt", "file4.txt"]
 
 interface Buffers {
     name: string
@@ -23,44 +22,56 @@ interface Buffers {
 //                 click: () => onClick(buffer.fullPath),
 //             }),
 //     )
+//
 
-const createTouchBarMenu = (browserWindow: BrowserWindow, buffers: Buffers[]) => {
+type Items = Array<{ label: string }>
+const getNames = (buffers: Buffers[]): Items => buffers.map(b => ({ label: b.name }))
+
+const createTouchBarMenu = () => (browserWindow: BrowserWindow, buffers: Buffers[]) => {
     // List needs to be scrollable
-    const onClick = (filePath: string) => browserWindow.webContents.send("open-file", filePath)
+    let items: Items
 
-    const scrubber = new TouchBarScrubber({
-        items: buffers.map(buffer => ({ label: buffer.name })),
-        highlight: null,
-        selectedStyle: null,
-        overlayStyle: null,
-        showArrowButtons: false,
-        mode: "free",
-        continuous: true,
-        select: selectedIndex => {
-            const buffer = buffers[selectedIndex]
-            onClick(buffer.fullPath)
-        },
-    })
-    //
-    // const arrangement = flatten(
-    //     buttons(buffers, onClick).map(button => [button, new TouchBarSpacer({ size: "small" })]),
-    // )
+    return () => {
+        const onClick = (filePath: string) => browserWindow.webContents.send("open-file", filePath)
+        items = items || getNames(buffers)
 
-    // const segmentedControl = new TouchBarSegmentedControl({
-    //     segmentStyle: "automatic",
-    //     mode: "buttons",
-    //     segments: buffers.map(buffer => ({ label: buffer.name, icon: null, enabled: true })),
-    //     change: selectedIndex => {
-    //         const buffer = buffers[selectedIndex]
-    //         onClick(buffer.fullPath)
-    //     },
-    // })
-    //
-    // const touchBar = new TouchBar({ items: [segmentedControl] })
-    const touchBar = new TouchBar({ items: [scrubber] })
-    // const touchBar = new TouchBar({ items: arrangement })
+        const newItems = [...new Set([...getNames(buffers), ...items])]
+        items.push(...newItems)
 
-    browserWindow.setTouchBar(touchBar)
+        const scrubber = new TouchBarScrubber({
+            items,
+            highlight: null,
+            selectedStyle: "background",
+            overlayStyle: "outline",
+            showArrowButtons: true,
+            mode: "free",
+            continuous: true,
+            select: selectedIndex => {
+                const buffer = buffers[selectedIndex]
+                onClick(buffer.fullPath)
+            },
+        })
+
+        // const arrangement = flatten(
+        //     buttons(buffers, onClick).map(button => [button, new TouchBarSpacer({ size: "small" })]),
+        // )
+
+        // const segmentedControl = new TouchBarSegmentedControl({
+        //     segmentStyle: "separated",
+        //     mode: "buttons",
+        //     segments: buffers.map(buffer => ({ label: buffer.name, icon: null, enabled: true })),
+        //     change: selectedIndex => {
+        //         const buffer = buffers[selectedIndex]
+        //         onClick(buffer.fullPath)
+        //     },
+        // })
+        //
+
+        const touchBar = new TouchBar({ items: [scrubber] })
+
+        browserWindow.setTouchBar(touchBar)
+    }
 }
 
-export default createTouchBarMenu
+const createWithState = createTouchBarMenu()
+export default createWithState

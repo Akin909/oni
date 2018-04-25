@@ -9,8 +9,8 @@ import addDevExtensions from "./installDevTools"
 import * as Log from "./Log"
 import { buildDockMenu, buildMenu } from "./menu"
 import { makeSingleInstance } from "./ProcessLifecycle"
-import { moveToNextOniInstance } from "./WindowManager"
 import createTouchBarMenu from "./touchbar"
+import { moveToNextOniInstance } from "./WindowManager"
 
 global["getLogs"] = Log.getAllLogs // tslint:disable-line no-string-literal
 
