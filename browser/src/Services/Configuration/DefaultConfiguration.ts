@@ -132,6 +132,7 @@ const BaseConfiguration: IConfigurationValues = {
 
     "explorer.persistDeletedFiles": true,
     "explorer.maxUndoFileSizeInBytes": 500_000,
+    "explorer.watcher.enabled": false,
 
     "environment.additionalPaths": [],
 

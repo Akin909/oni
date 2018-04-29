@@ -200,6 +200,7 @@ export interface IConfigurationValues {
     // to true
     "explorer.persistDeletedFiles": boolean
     "explorer.maxUndoFileSizeInBytes": number
+    "explorer.watcher.enabled": boolean
 
     "editor.fullScreenOnStart": boolean
     "editor.maximizeScreenOnStart": boolean

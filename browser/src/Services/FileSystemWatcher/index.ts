@@ -1,5 +1,6 @@
 import * as chokidar from "chokidar"
 import { Stats } from "fs"
+import { configuration } from "./../Configuration"
 import { Event, IEvent } from "oni-types"
 
 import * as Log from "./../../Log"
@@ -33,9 +34,11 @@ export class FileSystemWatcher {
     constructor({ target, options }: IFSOptions) {
         this._watcher = chokidar.watch(target, options)
 
-        this._watcher.on("ready", () => {
-            this._attachEventListeners()
-        })
+        if (configuration.getValue("explorer.watcher.enabled")) {
+            this._watcher.on("ready", () => {
+                this._attachEventListeners()
+            })
+        }
 
         this._watcher.on("error", err => {
             Log.warn("FileSystemWatcher encountered an error: " + err)
