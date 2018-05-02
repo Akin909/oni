@@ -101,10 +101,16 @@ export class ExplorerSplit {
 
     private _initializeFileSystemWatcher(): void {
         if (this._configuration.getValue("explorer.autoRefresh")) {
-            const excluded = this._configuration.getValue("oni.exclude")
+            const ignored: string[] = this._configuration.getValue("oni.exclude")
             this._watcher = new FileSystemWatcher({
                 target: this._workspace.activeWorkspace,
-                options: { ignoreInitial: true, ignored: [...excluded] },
+                options: {
+                    ignored,
+                    useFsEvents: true,
+                    ignorePermissionErrors: true,
+                    ignoreInitial: true,
+                    depth: 15,
+                },
             })
 
             const events = ["onChange", "onAdd", "onAddDir", "onMove", "onDelete", "onDeleteDir"]
