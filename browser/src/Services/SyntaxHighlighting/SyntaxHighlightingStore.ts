@@ -18,6 +18,8 @@ import { SyntaxHighlightingPeriodicJob } from "./SyntaxHighlightingPeriodicJob"
 import { reducer } from "./SyntaxHighlightingReducer"
 import * as Selectors from "./SyntaxHighlightSelectors"
 
+import WebWorker from "./../../Workers"
+
 const syntaxHighlightingJobs = new PeriodicJobs.PeriodicJobManager()
 
 export interface ISyntaxHighlightTokenInfo {
@@ -208,6 +210,11 @@ const updateTokenMiddleware = (store: any) => (next: any) => (action: any) => {
             }
 
             const relevantRange = Selectors.getRelevantRange(state, bufferId)
+
+            const testWorker = new WebWorker("test")
+            testWorker.addListeners("printTwo", result => {
+                console.log("Worker result ", result)
+            })
 
             syntaxHighlightingJobs.startJob(
                 new SyntaxHighlightingPeriodicJob(
