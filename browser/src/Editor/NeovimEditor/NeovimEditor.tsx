@@ -1195,7 +1195,20 @@ export class NeovimEditor extends Editor implements IEditor {
     }
 
     private _onBufFilePost = (evt: BufferEventContext) => {
+        const buf = this._bufferManager.updateBufferFromEvent(evt.current)
         this._bufferManager.populateBufferList(evt)
+        this._lastBufferId = evt.current.bufferNumber.toString()
+        this.notifyBufferEnter(buf)
+        this._bufferLayerManager.notifyBufferEnter(buf)
+
+        // Existing buffers contains a duplicate current buffer object which should be filtered out
+        // and current buffer sent instead. Finally Filter out falsy viml values.
+        const existingBuffersWithoutCurrent = evt.existingBuffers.filter(
+            b => b.bufferNumber !== evt.current.bufferNumber,
+        )
+        const buffers = [evt.current, ...existingBuffersWithoutCurrent].filter(b => !!b)
+
+        this._actions.bufferEnter(buffers)
     }
 
     private async _onBufWritePost(evt: EventContext): Promise<void> {

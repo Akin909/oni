@@ -247,6 +247,7 @@ export const buffersReducer = (
         totalLines: 0,
     })
 
+    console.log("state: ", s)
     switch (a.type) {
         case "BUFFER_ENTER":
             byId = a.payload.buffers.reduce((buffersById, buffer) => {
@@ -302,6 +303,11 @@ export const buffersReducer = (
             return {
                 ...s,
                 byId,
+            }
+        case "BUFFER_RENAME":
+            return {
+                ...s,
+                activeBufferId: a.payload.activeBufferId,
             }
         case "SET_CURRENT_BUFFERS":
             allIds = s.allIds.filter(id => a.payload.bufferIds.indexOf(id) >= 0)

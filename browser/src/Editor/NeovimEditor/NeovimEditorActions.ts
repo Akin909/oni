@@ -285,6 +285,13 @@ export interface ISetConfigurationValue<K extends keyof IConfigurationValues> {
     }
 }
 
+interface IBufferRenameAction {
+    type: "BUFFER_RENAME"
+    payload: {
+        activeBufferId: number
+    }
+}
+
 export type Action<K extends keyof IConfigurationValues> = SimpleAction | ActionWithGeneric<K>
 
 export type SimpleAction =
@@ -292,6 +299,7 @@ export type SimpleAction =
     | IRemoveBufferLayerAction
     | IBufferEnterAction
     | IBufferSaveAction
+    | IBufferRenameAction
     | IBufferUpdateAction
     | ISetColorsAction
     | ISetCursorPositionAction
@@ -465,6 +473,13 @@ export const bufferUpdate = (id: number, modified: boolean, totalLines: number) 
         id,
         modified,
         totalLines,
+    },
+})
+
+export const bufferRename = (buffer: EventContext): IBufferRenameAction => ({
+    type: "BUFFER_RENAME",
+    payload: {
+        activeBufferId: buffer.bufferNumber,
     },
 })
 

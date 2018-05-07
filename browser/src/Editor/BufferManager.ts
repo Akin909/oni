@@ -439,7 +439,7 @@ export class Buffer implements IBuffer {
 // Helper for managing buffer state
 export class BufferManager {
     private _idToBuffer: { [id: string]: Buffer } = {}
-    private _filePathToId: { [filePath: string]: string } = {}
+    private _filePathToId = new Map<string, string>()
     private _bufferList: { [id: string]: InactiveBuffer } = {}
 
     constructor(
@@ -453,7 +453,7 @@ export class BufferManager {
         const currentBuffer = this.getBufferById(id)
 
         if (evt.bufferFullPath) {
-            this._filePathToId[evt.bufferFullPath] = id
+            this._filePathToId.set(evt.bufferFullPath, id)
         }
 
         if (currentBuffer) {
@@ -469,12 +469,16 @@ export class BufferManager {
     public populateBufferList(buffers: BufferEventContext): void {
         const bufferlist = buffers.existingBuffers.reduce((list, buffer) => {
             const id = `${buffer.bufferNumber}`
-            if (buffer.bufferFullPath) {
-                this._filePathToId[buffer.bufferFullPath] = id
-                list[id] = new InactiveBuffer(buffer)
-            }
+            list[id] = new InactiveBuffer(buffer)
             return list
         }, {})
+
+        const allBuffers = [...buffers.existingBuffers, buffers.current]
+        this._filePathToId = allBuffers.reduce((acc, buffer) => {
+            acc.set(buffer.bufferFullPath, buffer.bufferNumber.toString())
+            return acc
+        }, new Map<string, string>())
+
         const currentId = buffers.current.bufferNumber.toString()
         const current = this.getBufferById(currentId)
         this._bufferList = { ...bufferlist, [currentId]: current }
