@@ -11,6 +11,7 @@ import { IEvent } from "oni-types"
 
 import { NeovimInstance, NeovimScreen } from "./../../neovim"
 import { INeovimRenderer } from "./../../Renderer"
+import FileDropHandler from "./FileDropHandler"
 
 import { Cursor } from "./../../UI/components/Cursor"
 import { CursorLine } from "./../../UI/components/CursorLine"
@@ -39,6 +40,7 @@ export interface INeovimSurfaceProps {
     onKeyDown?: (key: string) => void
     onBufferClose?: (bufferId: number) => void
     onBufferSelect?: (bufferId: number) => void
+    onFileDrop?: (files: FileList) => void
     onImeStart: () => void
     onImeEnd: () => void
     onBounceStart: () => void
@@ -51,6 +53,7 @@ export interface INeovimSurfaceProps {
 class NeovimSurface extends React.Component<INeovimSurfaceProps> {
     private observer: any
     private _editor: HTMLDivElement
+    private _editorContainer: HTMLDivElement
 
     public componentDidMount(): void {
         // tslint:disable-next-line
@@ -67,7 +70,7 @@ class NeovimSurface extends React.Component<INeovimSurfaceProps> {
 
     public render(): JSX.Element {
         return (
-            <div className="container vertical full">
+            <div className="container vertical full" ref={e => (this._editorContainer = e)}>
                 <div className="container fixed">
                     <TabsContainer
                         onBufferSelect={this.props.onBufferSelect}
@@ -106,6 +109,10 @@ class NeovimSurface extends React.Component<INeovimSurfaceProps> {
                     <div className="stack layer">
                         <ToolTips />
                     </div>
+                    <FileDropHandler
+                        target={this._editorContainer}
+                        handleFiles={this.props.onFileDrop}
+                    />
                     <NeovimEditorLoadingOverlay />
                     <InstallHelp />
                 </div>
