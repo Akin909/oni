@@ -981,6 +981,7 @@
         "ts-jest": "^22.0.4",
         "ts-loader": "^4.2.0",
         "tslint": "5.9.1",
+        "typescript-plugin-styled-components": "^0.0.6",
         "vscode-snippet-parser": "0.0.5",
         "wcwidth": "1.0.1",
         "webdriverio": "4.8.0",

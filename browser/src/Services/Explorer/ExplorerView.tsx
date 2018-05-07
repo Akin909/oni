@@ -7,17 +7,20 @@ import * as React from "react"
 import * as DND from "react-dnd"
 import HTML5Backend from "react-dnd-html5-backend"
 import { connect } from "react-redux"
+import { AutoSizer, List } from "react-virtualized"
 import { compose } from "redux"
 
 import { CSSTransition, TransitionGroup } from "react-transition-group"
 
-import { css, styled } from "./../../UI/components/common"
+import { css, enableMouse, styled } from "./../../UI/components/common"
 import { TextInputView } from "./../../UI/components/LightweightText"
+import { SidebarEmptyPaneView } from "./../../UI/components/SidebarEmptyPaneView"
 import { SidebarContainerView, SidebarItemView } from "./../../UI/components/SidebarItemView"
 import { Sneakable } from "./../../UI/components/Sneakable"
 import { VimNavigator } from "./../../UI/components/VimNavigator"
 import { DragAndDrop, Droppeable } from "./../DragAndDrop"
 
+import { commandManager } from "./../CommandManager"
 import { FileIcon } from "./../FileIcon"
 
 import * as ExplorerSelectors from "./ExplorerSelectors"
@@ -38,20 +41,16 @@ export interface INodeViewProps {
     updated?: string[]
     isRenaming: Node
     isCreating: boolean
+    children?: React.ReactNode
 }
 
 export const NodeWrapper = styled.div`
+    cursor: pointer;
     &:hover {
         text-decoration: underline;
     }
 `
 
-// tslint:disable-next-line
-const noop = (elem: HTMLElement) => {}
-const scrollIntoViewIfNeeded = (elem: HTMLElement) => {
-    // tslint:disable-next-line
-    elem && elem["scrollIntoViewIfNeeded"] && elem["scrollIntoViewIfNeeded"]()
-}
 const stopPropagation = (fn: () => void) => {
     return (e?: React.MouseEvent<HTMLElement>) => {
         if (e) {
@@ -130,10 +129,7 @@ export class NodeView extends React.PureComponent<INodeViewProps, {}> {
         const renameInProgress = isRenaming.name === node.name && isSelected && !isCreating
         const creationInProgress = isCreating && isSelected && !renameInProgress
         return (
-            <NodeWrapper
-                style={{ cursor: "pointer" }}
-                innerRef={this.props.isSelected ? scrollIntoViewIfNeeded : noop}
-            >
+            <NodeWrapper>
                 {renameInProgress ? (
                     <TextInputView
                         styles={renameStyles}
@@ -269,9 +265,40 @@ export interface IExplorerViewProps extends IExplorerViewContainerProps {
     updated: string[]
 }
 
-import { SidebarEmptyPaneView } from "./../../UI/components/SidebarEmptyPaneView"
+interface ISneakableNode extends IExplorerViewProps {
+    node: Node
+    selectedId: string
+}
 
-import { commandManager } from "./../CommandManager"
+const SneakableNode = ({ node, selectedId, ...props }: ISneakableNode) => {
+    const handleClick = () => {
+        props.onClick(node.id)
+    }
+
+    return (
+        <Sneakable callback={handleClick}>
+            <NodeView
+                node={node}
+                isSelected={node.id === selectedId}
+                isCreating={props.isCreating}
+                onCancelCreate={props.onCancelCreate}
+                onCompleteCreate={props.onCompleteCreate}
+                onCompleteRename={props.onCompleteRename}
+                isRenaming={props.isRenaming}
+                onCancelRename={props.onCancelRename}
+                updated={props.updated}
+                yanked={props.yanked}
+                moveFileOrFolder={props.moveFileOrFolder}
+                onClick={handleClick}
+            />
+        </Sneakable>
+    )
+}
+
+const ExplorerContainer = styled.div`
+    height: 100%;
+    ${enableMouse};
+`
 
 export class ExplorerView extends React.PureComponent<IExplorerViewProps, {}> {
     public render(): JSX.Element {
@@ -289,36 +316,44 @@ export class ExplorerView extends React.PureComponent<IExplorerViewProps, {}> {
         }
 
         return (
-            <TransitionGroup>
+            <TransitionGroup style={{ height: "100%" }}>
                 <VimNavigator
                     ids={ids}
-                    active={this.props.isActive && !this.props.isRenaming && !this.props.isCreating}
                     onSelectionChanged={this.props.onSelectionChanged}
                     onSelected={id => this.props.onClick(id)}
+                    active={this.props.isActive && !this.props.isRenaming && !this.props.isCreating}
+                    style={{ height: "100%" }}
                     render={(selectedId: string) => {
-                        const nodes = this.props.nodes.map(node => (
-                            <Sneakable callback={() => this.props.onClick(node.id)} key={node.id}>
-                                <NodeView
-                                    node={node}
-                                    isSelected={node.id === selectedId}
-                                    isCreating={this.props.isCreating}
-                                    onCancelCreate={this.props.onCancelCreate}
-                                    onCompleteCreate={this.props.onCompleteCreate}
-                                    onCompleteRename={this.props.onCompleteRename}
-                                    isRenaming={this.props.isRenaming}
-                                    onCancelRename={this.props.onCancelRename}
-                                    updated={this.props.updated}
-                                    yanked={this.props.yanked}
-                                    moveFileOrFolder={this.props.moveFileOrFolder}
-                                    onClick={() => this.props.onClick(node.id)}
-                                />
-                            </Sneakable>
-                        ))
-
+                        const selectedIndex = this.props.nodes.findIndex(n => selectedId === n.id)
                         return (
-                            <div className="explorer enable-mouse">
-                                <div className="items">{nodes}</div>
-                            </div>
+                            <ExplorerContainer className="explorer">
+                                <AutoSizer>
+                                    {({ height, width }) => (
+                                        <List
+                                            height={height}
+                                            width={width}
+                                            rowHeight={25}
+                                            overscanRowCount={10}
+                                            scrollToAlignment="center"
+                                            rowCount={this.props.nodes.length}
+                                            scrollToIndex={selectedIndex}
+                                            rowRenderer={({ index, style, key }) => {
+                                                const node = this.props.nodes[index]
+                                                return (
+                                                    <div style={style} key={key}>
+                                                        <SneakableNode
+                                                            {...this.props}
+                                                            node={node}
+                                                            key={node.id}
+                                                            selectedId={selectedId}
+                                                        />
+                                                    </div>
+                                                )
+                                            }}
+                                        />
+                                    )}
+                                </AutoSizer>
+                            </ExplorerContainer>
                         )
                     }}
                 />
