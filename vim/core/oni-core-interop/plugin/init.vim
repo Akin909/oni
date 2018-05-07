@@ -126,6 +126,7 @@ augroup OniEventListeners
     autocmd! BufEnter * :call OniNotifyWithBuffers("BufEnter")
     autocmd! BufRead * :call OniNotifyWithBuffers("BufRead")
     autocmd! BufWinEnter * :call OniNotifyWithBuffers("BufWinEnter")
+    autocmd! BufFilePost * :call OniNotifyWithBuffers("BufFilePost")
     autocmd! ColorScheme * :call OniNotifyEvent("ColorScheme")
     autocmd! FileType * :call OniNotifyEvent("FileType")
     autocmd! WinEnter * :call OniNotifyEvent("WinEnter")

@@ -510,6 +510,12 @@ export class NeovimEditor extends Editor implements IEditor {
         )
 
         this.trackDisposable(
+            this._neovimInstance.autoCommands.onBufFilePost.subscribe((evt: BufferEventContext) =>
+                this._onBufFilePost(evt),
+            ),
+        )
+
+        this.trackDisposable(
             this._neovimInstance.onColorsChanged.subscribe(() => {
                 this._onColorsChanged()
             }),
@@ -1186,6 +1192,10 @@ export class NeovimEditor extends Editor implements IEditor {
 
     private _onImeEnd(): void {
         this._actions.setImeActive(false)
+    }
+
+    private _onBufFilePost = (evt: BufferEventContext) => {
+        this._bufferManager.populateBufferList(evt)
     }
 
     private async _onBufWritePost(evt: EventContext): Promise<void> {
