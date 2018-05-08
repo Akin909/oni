@@ -872,6 +872,7 @@
         "redux-batched-subscribe": "^0.1.6",
         "shell-env": "^0.3.0",
         "shelljs": "0.7.7",
+        "simple-git": "^1.92.0",
         "styled-components": "^2.3.0",
         "typescript": "^2.8.1",
         "vscode-css-languageserver-bin": "^1.2.1",

@@ -1,7 +1,10 @@
-import * as Git from "../../Services/Git"
+import {
+    GitVersionControlProvider as Git,
+    VersionControlProvider,
+} from "../../Services/VersionControl"
 
 export class Services {
-    public get git(): any {
+    public get git(): VersionControlProvider {
         return Git
     }
 }
