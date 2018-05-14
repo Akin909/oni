@@ -25,6 +25,9 @@ const getSupportedLanguages = async () => {
 }
 
 const activate = async Oni => {
+    // Tracks toggled on and off state - FIXME: find a non-mutative way to do this
+    let toggledOn = true
+
     const config = Oni.configuration.getValue("oni.plugins.prettier")
     const prettierItem = Oni.statusBar.createItem(0, "oni.plugins.prettier")
 
@@ -33,10 +36,11 @@ const activate = async Oni => {
 
     const callback = async () => {
         const isNormalMode = Oni.editors.activeEditor.mode === "normal"
-        if (isNormalMode) {
+        if (isNormalMode && toggledOn) {
             await applyPrettierWithState(Oni)
         }
     }
+
     Oni.commands.registerCommand({
         command: "autoformat.prettier",
         name: "Autoformat with Prettier",
@@ -55,9 +59,16 @@ const activate = async Oni => {
     }
 
     // Status Bar Component ----
-    const { errorElement, successElement, prettierElement } = createPrettierComponent(Oni, callback)
+    const { errorElement, successElement, prettierElement, offElement } = createPrettierComponent(
+        Oni,
+        callback,
+    )
 
-    prettierItem.setContents(prettierElement)
+    if (toggledOn) {
+        prettierItem.setContents(prettierElement)
+    } else {
+        setPrettierStatus(offElement)
+    }
 
     const setStatusBarContents = (statusBarItem, defaultElement) => async (
         statusElement,
@@ -69,6 +80,20 @@ const activate = async Oni => {
 
     const setPrettierStatus = setStatusBarContents(prettierItem, prettierElement)
 
+    Oni.commands.registerCommand({
+        command: "toggle.prettier",
+        name: "Toggle the prettier plugin",
+        detail: "Toggle the prettier plugin on and off",
+        execute: () => {
+            toggledOn = !toggledOn
+            if (toggledOn) {
+                setPrettierStatus(prettierElement)
+            } else {
+                setPrettierStatus(offElement)
+            }
+        },
+    })
+
     function applyPrettier() {
         // Track the buffer state within the function using a closure
         // if the buffer as a string is the same as the last state
@@ -76,8 +101,12 @@ const activate = async Oni => {
         let lastBufferState = null
 
         // pass in Oni explicitly - Make dependencies clearer
-        return async Oni => {
+        return async (Oni, toggledOn = true) => {
             const { activeBuffer } = Oni.editors.activeEditor
+
+            if (!toggledOn) {
+                return
+            }
 
             const [arrayOfLines, { line, character }] = await Promise.all([
                 activeBuffer.getLines(),
@@ -136,9 +165,9 @@ const activate = async Oni => {
     Oni.editors.activeEditor.onBufferSaved.subscribe(async ({ filePath }) => {
         const hasCompatibility = checkCompatibility(filePath)
 
-        const canApplyPrettier = isTrue(formatOnSave, enabled, hasCompatibility)
+        const canApplyPrettier = isTrue(formatOnSave, enabled, hasCompatibility, toggledOn)
         if (canApplyPrettier) {
-            await applyPrettierWithState(Oni)
+            await applyPrettierWithState(Oni, toggledOn)
         }
     })
     return { applyPrettier: applyPrettierWithState, checkCompatibility, checkPrettierrc }
@@ -191,10 +220,18 @@ function createPrettierComponent(Oni, onClick) {
         "prettier",
     )
 
+    const offElement = React.createElement(
+        "div",
+        { style, className: "prettier" },
+        iconContainer("toggle-off", ""),
+        "prettier",
+    )
+
     return {
         errorElement,
         prettierElement,
         successElement,
+        offElement,
     }
 }
 
