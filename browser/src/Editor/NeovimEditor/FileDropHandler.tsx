@@ -1,14 +1,16 @@
 import * as React from "react"
 
+type SetRef = (elem: HTMLElement) => void
+
 interface IFileDropHandler {
-    target: HTMLElement
     handleFiles: (files: FileList) => void
+    children: (args: { setRef: SetRef }) => React.ReactElement<{ setRef: SetRef }>
 }
 
 type DragTypeName = "ondragover" | "ondragleave" | "ondragenter"
 
 /**
- * Takes an element (which can accept drag and drop events) and a file drop event listener callback
+ * Gets a target element via a callback ref and attaches a file drop event listener callback
  * N.B. the element cannot be obscured as this will prevent event transmission
  * @name FileDropHandler
  * @function
@@ -16,32 +18,33 @@ type DragTypeName = "ondragover" | "ondragleave" | "ondragenter"
  * @extends {React}
  */
 export default class FileDropHandler extends React.Component<IFileDropHandler> {
+    private _target: HTMLElement
+
     public componentDidMount() {
         this.addDropHandler()
     }
 
-    public componentDidUpdate(prevProps: IFileDropHandler) {
-        if (!prevProps.target && this.props.target) {
-            this.addDropHandler()
-        }
+    public setRef = (element: HTMLElement) => {
+        this._target = element
     }
 
     public addDropHandler() {
-        if (!this.props.target) {
+        if (!this._target) {
             return
         }
 
         const dragTypes = ["ondragenter", "ondragover", "ondragleave"]
 
         dragTypes.map((event: DragTypeName) => {
-            if (this.props.target[event]) {
-                this.props.target[event] = ev => {
+            if (this._target[event]) {
+                this._target[event] = ev => {
                     ev.preventDefault()
+                    ev.stopPropagation()
                 }
             }
         })
 
-        this.props.target.ondrop = async ev => {
+        this._target.ondrop = async ev => {
             const { files } = ev.dataTransfer
 
             if (files.length) {
@@ -51,7 +54,7 @@ export default class FileDropHandler extends React.Component<IFileDropHandler> {
         }
     }
 
-    public render(): JSX.Element {
-        return null
+    public render() {
+        return this.props.children({ setRef: this.setRef })
     }
 }
