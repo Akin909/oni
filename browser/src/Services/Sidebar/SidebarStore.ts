@@ -7,6 +7,7 @@
 import { Reducer, Store } from "redux"
 import { createStore as createReduxStore } from "./../../Redux"
 
+import { commandManager } from "./../CommandManager"
 import { WindowManager, WindowSplitHandle } from "./../WindowManager"
 import { SidebarContentSplit } from "./SidebarContentSplit"
 import { SidebarSplit } from "./SidebarSplit"
@@ -20,6 +21,8 @@ export interface ISidebarState {
     activeEntryId: string
 
     isActive: boolean
+    // Size of the sidebar
+    size: number
 }
 
 export type SidebarIcon = string
@@ -71,7 +74,29 @@ export class SidebarManager {
                 "left",
                 new SidebarContentSplit(this),
             )
+
+            commandManager.registerCommand({
+                command: "increase.sidebar.size",
+                name: "Increase the side bar size",
+                detail: "Widen the side bar",
+                execute: this.increaseSize,
+            })
+
+            commandManager.registerCommand({
+                command: "decrease.sidebar.size",
+                name: "Decrease the side bar size",
+                detail: "Shrink the side bar",
+                execute: this.decreaseSize,
+            })
         }
+    }
+
+    public increaseSize = () => {
+        this._store.dispatch({ type: "INCREASE_SIZE", amount: 50 })
+    }
+
+    public decreaseSize = () => {
+        this._store.dispatch({ type: "DECREASE_SIZE", amount: 50 })
     }
 
     public setNotification(id: string): void {
@@ -139,6 +164,7 @@ const DefaultSidebarState: ISidebarState = {
     entries: [],
     activeEntryId: null,
     isActive: false,
+    size: 200,
 }
 
 export type SidebarActions =
@@ -159,6 +185,14 @@ export type SidebarActions =
       }
     | {
           type: "LEAVE"
+      }
+    | {
+          type: "DECREASE_SIZE"
+          size: number
+      }
+    | {
+          type: "INCREASE_SIZE"
+          size: number
       }
 
 export const sidebarReducer: Reducer<ISidebarState> = (
@@ -194,6 +228,16 @@ export const sidebarReducer: Reducer<ISidebarState> = (
                 }
             } else {
                 return newState
+            }
+        case "INCREASE_SIZE":
+            return {
+                ...newState,
+                size: newState.size + action.size,
+            }
+        case "DECREASE_SIZE":
+            return {
+                ...newState,
+                size: newState.size <= 50 ? newState.size : newState.size - action.size,
             }
         default:
             return newState
