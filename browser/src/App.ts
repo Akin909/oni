@@ -83,6 +83,7 @@ export const start = async (args: string[]): Promise<void> => {
     const globalCommandsPromise = import("./Services/Commands/GlobalCommands")
     const inputManagerPromise = import("./Services/InputManager")
     const languageManagerPromise = import("./Services/Language")
+    const vcsManagerPromise = import("./Services/VersionControl")
     const notificationsPromise = import("./Services/Notifications")
     const snippetPromise = import("./Services/Snippets")
     const keyDisplayerPromise = import("./Services/KeyDisplayer")
@@ -268,6 +269,16 @@ export const start = async (args: string[]): Promise<void> => {
 
     Sidebar.activate(configuration, workspace)
     const sidebarManager = Sidebar.getInstance()
+
+    const VCSManager = await vcsManagerPromise
+    VCSManager.activate(
+        workspace,
+        editorManager,
+        statusBar,
+        commandManager,
+        menuManager,
+        sidebarManager,
+    )
 
     Explorer.activate(
         commandManager,
