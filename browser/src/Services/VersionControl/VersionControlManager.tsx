@@ -5,10 +5,10 @@ import * as React from "react"
 
 import { SupportedProviders, VersionControlPane, VersionControlProvider } from "./"
 import * as Log from "./../../Log"
+import { Branch } from "./../../UI/components/VersionControl"
 import { MenuManager } from "./../Menu"
 import { SidebarManager } from "./../Sidebar"
 import { IWorkspace } from "./../Workspace"
-import { Branch } from "./VersionControlComponents"
 
 export class VersionControlManager {
     private _vcs: SupportedProviders
@@ -30,25 +30,13 @@ export class VersionControlManager {
     public async registerProvider(provider: VersionControlProvider): Promise<void> {
         if (provider) {
             this._providers.set(provider.name, provider)
-            await this._activateVCSProviderIfCompatible(provider)
+            if (await provider.canHandleWorkspace(this._workspace.activeWorkspace)) {
+                this._activateVCSProvider(provider)
+            }
 
             this._workspace.onDirectoryChanged.subscribe(async dir => {
                 const providerToUse = await this.getCompatibleProvider(dir)
-
-                const isSameProvider =
-                    this._vcsProvider &&
-                    providerToUse &&
-                    this._vcsProvider.name === providerToUse.name
-
-                if (isSameProvider) {
-                    return null
-                }
-                if (this._vcsProvider) {
-                    return this.deactivateProvider()
-                }
-                if (providerToUse) {
-                    return this._activateVCSProviderIfCompatible(providerToUse)
-                }
+                return this.handleProviderStatus(providerToUse)
             })
         }
     }
@@ -62,58 +50,71 @@ export class VersionControlManager {
         this._vcs = null
     }
 
+    public handleProviderStatus(providerToUse: VersionControlProvider) {
+        const isSameProvider =
+            this._vcsProvider && providerToUse && this._vcsProvider.name === providerToUse.name
+
+        if (isSameProvider) {
+            return
+        } else if (this._vcsProvider && !providerToUse) {
+            return this.deactivateProvider()
+        } else if (this._vcsProvider && providerToUse) {
+            this.deactivateProvider()
+            return this._activateVCSProvider(providerToUse)
+        } else if (!this._vcsProvider && providerToUse) {
+            return this._activateVCSProvider(providerToUse)
+        }
+    }
+
     private async getCompatibleProvider(dir: string): Promise<VersionControlProvider | null> {
         const allCompatibleProviders: VersionControlProvider[] = []
-        for (const [, vcs] of this._providers) {
+        for (const vcs of this._providers.values()) {
             const isCompatible = await vcs.canHandleWorkspace(dir)
             if (isCompatible) {
                 allCompatibleProviders.push(vcs)
             }
         }
-
-        // TODO: when we have multiple provides we will need logic to determine which to
-        // use if more than one is comatible
+        // TODO: when we have multiple providers we will need logic to determine which to
+        // use if more than one is compatible
         const [providerToUse] = allCompatibleProviders
 
         return providerToUse
     }
 
-    private _activateVCSProviderIfCompatible = async (provider: VersionControlProvider) => {
-        if (await provider.canHandleWorkspace(this._workspace.activeWorkspace)) {
-            this._vcs = provider.name
-            this._vcsProvider = provider
-            this._initialize()
-            provider.activate()
-        }
+    private _activateVCSProvider = async (provider: VersionControlProvider) => {
+        this._vcs = provider.name
+        this._vcsProvider = provider
+        this._initialize()
+        provider.activate()
     }
 
     private _initialize() {
         this._updateBranchIndicator()
 
-        const s1 = this._editorManager.activeEditor.onBufferEnter.subscribe(async () => {
-            await this._updateBranchIndicator()
-        })
+        const subscriptions = [
+            this._editorManager.activeEditor.onBufferEnter.subscribe(async () => {
+                await this._updateBranchIndicator()
+            }),
+            this._vcsProvider.onBranchChanged.subscribe(async newBranch => {
+                await this._updateBranchIndicator(newBranch)
+                await this._editorManager.activeEditor.neovim.command("e!")
+            }),
+            this._editorManager.activeEditor.onBufferSaved.subscribe(async () => {
+                await this._updateBranchIndicator()
+            }),
+            (this._workspace as any).onFocusGained.subscribe(async () => {
+                await this._updateBranchIndicator()
+            }),
+        ]
 
-        const s2 = this._vcsProvider.onBranchChanged.subscribe(async newBranch => {
-            await this._updateBranchIndicator(newBranch)
-            await this._editorManager.activeEditor.neovim.command("e!")
-        })
-
-        const s3 = this._editorManager.activeEditor.onBufferSaved.subscribe(async () => {
-            await this._updateBranchIndicator()
-        })
-        const s4 = (this._workspace as any).onFocusGained.subscribe(async () => {
-            await this._updateBranchIndicator()
-        })
+        this._subscriptions = subscriptions
 
         const vcsPane = new VersionControlPane(this._workspace, this._vcsProvider, this._vcs)
         const hasSidebar = this._sidebar.entries.some(({ id }) => id === vcsPane.id)
-
         if (!hasSidebar) {
             this._sidebar.add("code-fork", vcsPane)
         }
 
-        this._subscriptions = [s1, s2, s3, s4]
         this._registerCommands()
     }
 
@@ -149,7 +150,6 @@ export class VersionControlManager {
             if (!branch) {
                 throw new Error("The branch name could not be found")
             }
-            // TODO: disable repeated enter animations of this status item
             this._vcsStatusItem.setContents(<Branch branch={branch} diff={diff} />)
             this._vcsStatusItem.show()
         } catch (e) {
