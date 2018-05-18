@@ -38,12 +38,15 @@ export interface VersionControlProvider {
     onFileStatusChanged: IEvent<VCSFileStatusChangedEvent>
     onStagedFilesChanged: IEvent<VCSStagedFilesChangedEvent>
     onBranchChanged: IEvent<VCSBranchChangedEvent>
+    onPluginActivated: IEvent<void>
+    onPluginDeactivated: IEvent<void>
 
+    name: string
     canHandleWorkspace(dir?: string): Promise<boolean>
     getStatus(projectRoot?: string): Promise<StatusResult | void>
     getRoot(): Promise<string | void>
     getBranch(path?: string): Promise<string | void>
-    getLocalBranches(path?: string): Promise<GitP.BranchSummary | string>
+    getLocalBranches(path?: string): Promise<GitP.BranchSummary | void>
     stageFile(file: string, projectRoot?: string): Promise<void>
     fetchBranchFromRemote(args: {
         branch: string
@@ -56,6 +59,10 @@ export class GitVersionControlProvider implements VersionControlProvider {
     private _onBranchChange = new Event<VCSBranchChangedEvent>()
     private _onStagedFilesChanged = new Event<VCSStagedFilesChangedEvent>()
     private _onFileStatusChanged = new Event<VCSFileStatusChangedEvent>()
+    private _onPluginActivated = new Event<void>()
+    private _onPluginDeactivated = new Event<void>()
+    private _isActivated = false
+    private _name = "git"
     private _log: (...args: any[]) => void
 
     constructor(private _oni: Oni.Plugin.Api, private _git = GitP) {
@@ -74,16 +81,49 @@ export class GitVersionControlProvider implements VersionControlProvider {
         return this._onStagedFilesChanged
     }
 
-    public canHandleWorkspace(dir: string): Promise<boolean> {
-        return this._git(dir).checkIsRepo()
+    get onPluginActivated(): IEvent<void> {
+        return this._onPluginActivated
     }
 
-    public async getRoot(): Promise<string | null> {
+    get onPluginDeactivated(): IEvent<void> {
+        return this._onPluginDeactivated
+    }
+
+    get name(): string {
+        return this._name
+    }
+
+    public activate() {
+        this._isActivated = true
+        this._onPluginActivated.dispatch()
+    }
+
+    public deactivate() {
+        this._isActivated = false
+        this._onPluginDeactivated.dispatch()
+    }
+
+    public async canHandleWorkspace(dir: string): Promise<boolean> {
+        try {
+            const isRepo = await this._git(dir)
+                .silent()
+                .checkIsRepo()
+            return isRepo
+        } catch (e) {
+            this._log(
+                `Git provider was unable to check if this directory is a repository because ${
+                    e.message
+                }`,
+            )
+            return false
+        }
+    }
+
+    public async getRoot(): Promise<string | void> {
         try {
             return this._git().revparse(["--show-toplevel"])
         } catch (e) {
             this._log(`Git provider unable to find vcs root due to ${e.message}`)
-            return null
         }
     }
 
@@ -114,7 +154,9 @@ export class GitVersionControlProvider implements VersionControlProvider {
     public getDiff = async (currentDir: string): Promise<GitP.DiffResult | void> => {
         try {
             const isRepo = await this._git(currentDir).checkIsRepo()
-            return isRepo && this._git(currentDir).diffSummary()
+            if (isRepo) {
+                this._git(currentDir).diffSummary()
+            }
         } catch (error) {
             this._log(`Git provider unable to get current status because of: ${error.message}`)
         }
@@ -126,9 +168,7 @@ export class GitVersionControlProvider implements VersionControlProvider {
             this._onStagedFilesChanged.dispatch(file)
             this._onFileStatusChanged.dispatch({ path: file, status: "staged" })
         } catch (e) {
-            const error = `Git provider unable to add ${file} because ${e.message}`
-            this._log(error)
-            throw new Error(error)
+            this._log(`Git provider unable to add ${file} because ${e.message}`)
         }
     }
 
@@ -149,8 +189,13 @@ export class GitVersionControlProvider implements VersionControlProvider {
         }
     }
 
-    public getLocalBranches = (currentDir?: string): Promise<GitP.BranchSummary> => {
-        return this._git(currentDir).branchLocal()
+    public getLocalBranches = async (currentDir?: string): Promise<GitP.BranchSummary | void> => {
+        try {
+            const summary = await this._git(currentDir).branchLocal()
+            return summary
+        } catch (e) {
+            this._log(`Git provider unable to get local branches because of: ${e.message}`)
+        }
     }
 
     public getBranch = async (currentDir?: string): Promise<string | void> => {
@@ -162,12 +207,12 @@ export class GitVersionControlProvider implements VersionControlProvider {
         }
     }
 
-    public async changeBranch(targetBranch: string, currentDir: string): Promise<Error | void> {
+    public async changeBranch(targetBranch: string, currentDir: string): Promise<void> {
         try {
             await this._git(currentDir).checkout(targetBranch)
             this._onBranchChange.dispatch(targetBranch)
         } catch (e) {
-            return e
+            this._log(`Git Provider was unable change branch because of: ${e.message}`)
         }
     }
 
@@ -186,8 +231,9 @@ export class GitVersionControlProvider implements VersionControlProvider {
     }
 }
 
-export const activate = oni => {
+export const activate = async oni => {
     const provider = new GitVersionControlProvider(oni)
-    oni.services.vcs.registerProvider({ provider, name: "git" })
+    await oni.services.vcs.registerProvider(provider)
+
     return provider
 }

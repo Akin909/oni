@@ -27,6 +27,18 @@ export default class VersionControlPane {
         this._vcsProvider.onStagedFilesChanged.subscribe(async () => {
             await this.getStatus()
         })
+
+        this._vcsProvider.onPluginActivated.subscribe(async () => {
+            const status = await this.getStatus()
+            this._store.dispatch({ type: "ACTIVATE" })
+            if (status) {
+                this._store.dispatch({ type: "STATUS", payload: { status } })
+            }
+        })
+
+        this._vcsProvider.onPluginDeactivated.subscribe(() => {
+            this._store.dispatch({ type: "DEACTIVATE" })
+        })
     }
 
     public enter(): void {
@@ -41,12 +53,14 @@ export default class VersionControlPane {
     }
 
     public getStatus = async () => {
-        const { activeWorkspace } = this._workspace
-        const status = await this._vcsProvider.getStatus(activeWorkspace)
-        if (status) {
-            this._store.dispatch({ type: "STATUS", payload: { status } })
+        if (this._vcsProvider.isActivated) {
+            const { activeWorkspace } = this._workspace
+            const status = await this._vcsProvider.getStatus(activeWorkspace)
+            if (status) {
+                this._store.dispatch({ type: "STATUS", payload: { status } })
+            }
+            return status
         }
-        return status
     }
 
     public stageFile = async (file: string) => {
