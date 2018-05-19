@@ -1,12 +1,14 @@
 import { EventEmitter } from "events"
+import { pathExistsSync } from "fs-extra"
 import * as path from "path"
 
 import * as mkdirp from "mkdirp"
 import * as Oni from "oni-api"
-import { Event, IEvent } from "oni-types"
+import { Event, IDisposable, IEvent } from "oni-types"
 
 import * as Log from "./../Log"
 import * as Performance from "./../Performance"
+import { CommandContext } from "./CommandContext"
 import { EventContext } from "./EventContext"
 
 import { addDefaultUnitIfNeeded, measureFont } from "./../Font"
@@ -110,6 +112,11 @@ export const MAX_LINES_FOR_BUFFER_UPDATE = 5000
 
 export type NeovimEventHandler = (...args: any[]) => void
 
+export interface INeovimEvent {
+    eventName: string
+    eventContext: EventContext
+}
+
 export interface INeovimInstance {
     cursorPosition: IPosition
     quickFix: IQuickFixList
@@ -126,7 +133,7 @@ export interface INeovimInstance {
     onTitleChanged: IEvent<string>
 
     // When an OniCommand is requested, ie :OniCommand("quickOpen.show")
-    onOniCommand: IEvent<string>
+    onOniCommand: IEvent<CommandContext>
 
     onHidePopupMenu: IEvent<void>
     onShowPopupMenu: IEvent<INeovimCompletionInfo>
@@ -138,6 +145,8 @@ export interface INeovimInstance {
     onCommandLineSetCursorPosition: IEvent<INeovimCommandLineSetCursorPosition>
 
     onMessage: IEvent<IMessageInfo>
+
+    onVimEvent: IEvent<INeovimEvent>
 
     autoCommands: INeovimAutoCommands
     marks: INeovimMarks
@@ -188,6 +197,7 @@ export interface INeovimInstance {
  */
 export class NeovimInstance extends EventEmitter implements INeovimInstance {
     private _neovim: Session
+    private _isDisposed: boolean = false
     private _initPromise: Promise<void>
     private _isLeaving: boolean
     private _currentVimDirectory: string
@@ -215,7 +225,7 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
     private _onDirectoryChanged = new Event<string>()
     private _onErrorEvent = new Event<Error | string>()
     private _onYank = new Event<INeovimYankInfo>()
-    private _onOniCommand = new Event<string>()
+    private _onOniCommand = new Event<CommandContext>()
     private _onRedrawComplete = new Event<void>()
     private _onScroll = new Event<EventContext>()
     private _onTitleChanged = new Event<string>()
@@ -231,6 +241,7 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
     private _onCommandLineShowEvent = new Event<INeovimCommandLineShowEvent>()
     private _onCommandLineHideEvent = new Event<void>()
     private _onCommandLineSetCursorPositionEvent = new Event<INeovimCommandLineSetCursorPosition>()
+    private _onVimEvent = new Event<INeovimEvent>()
     private _onWildMenuHideEvent = new Event<void>()
     private _onWildMenuSelectEvent = new Event<IWildMenuSelectEvent>()
     private _onWildMenuShowEvent = new Event<IWildMenuShowEvent>()
@@ -238,6 +249,8 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
     private _tokenColorSynchronizer: NeovimTokenColorSynchronizer
 
     private _pendingScrollTimeout: number | null = null
+
+    private _disposables: IDisposable[] = []
 
     public get isInitialized(): boolean {
         return this._initComplete
@@ -275,7 +288,7 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
         return this._onModeChanged
     }
 
-    public get onOniCommand(): IEvent<string> {
+    public get onOniCommand(): IEvent<CommandContext> {
         return this._onOniCommand
     }
 
@@ -313,6 +326,10 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
 
     public get onCommandLineSetCursorPosition(): IEvent<INeovimCommandLineSetCursorPosition> {
         return this._onCommandLineSetCursorPositionEvent
+    }
+
+    public get onVimEvent(): IEvent<INeovimEvent> {
+        return this._onVimEvent
     }
 
     public get onWildMenuShow(): IEvent<IWildMenuShowEvent> {
@@ -363,9 +380,29 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
 
         this._bufferUpdateManager = new NeovimBufferUpdateManager(this._configuration, this)
 
-        this._onModeChanged.subscribe(newMode => {
+        const s1 = this._onModeChanged.subscribe(newMode => {
             this._bufferUpdateManager.notifyModeChanged(newMode)
         })
+
+        const dispatchScroll = () => this._dispatchScrollEvent()
+
+        const s2 = this._autoCommands.onCursorMoved.subscribe(dispatchScroll)
+        const s3 = this._autoCommands.onCursorMovedI.subscribe(dispatchScroll)
+
+        this._disposables = [s1, s2, s3]
+    }
+
+    public dispose(): void {
+        if (this._neovim) {
+            this._neovim.dispose()
+            this._neovim = null
+        }
+
+        if (this._disposables) {
+            this._disposables.forEach(d => d.dispose())
+        }
+
+        this._configuration = null
     }
 
     public async chdir(directoryPath: string): Promise<void> {
@@ -374,6 +411,11 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
 
     // Make a direct request against the msgpack API
     public async request<T>(request: string, args: any[]): Promise<T> {
+        if (!this._neovim || this._neovim.isDisposed) {
+            Log.warn("[NeovimInstance::request] Attempted to request on a disposed neovim instance")
+            return null
+        }
+
         return this._neovim.request<T>(request, args)
     }
 
@@ -453,7 +495,7 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
             return ["nvim_get_hl_by_name", [highlight, 1]]
         })
 
-        const [highlightInfo] = await this._neovim.request<[IVimHighlight[]]>("nvim_call_atomic", [
+        const [highlightInfo] = await this.request<[IVimHighlight[]]>("nvim_call_atomic", [
             atomicCalls,
         ])
 
@@ -508,40 +550,64 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
         return this.command(`e! ${fileName}`)
     }
 
+    /**
+     * getInitVimPath
+     * return the init vim path with no check to ensure existence
+     */
+    public getInitVimPath(): string {
+        // tslint:disable no-string-literal
+        const MYVIMRC = process.env["MYVIMRC"]
+        const rootFolder = Platform.isWindows()
+            ? // Use path from: https://github.com/neovim/neovim/wiki/FAQ
+              path.join(process.env["LOCALAPPDATA"], "nvim")
+            : path.join(Platform.getUserHome(), ".config", "nvim")
+        const initVimPath = MYVIMRC || path.join(rootFolder, "init.vim")
+        return initVimPath
+        // tslint:enable no-string-literal
+    }
+
+    /**
+     * doesInitVimExist
+     * Returns the init.vim path after checking the file exists
+     */
+    public doesInitVimExist(): string {
+        const initVimPath = this.getInitVimPath()
+        try {
+            return pathExistsSync(initVimPath) ? initVimPath : null
+        } catch (e) {
+            return null
+        }
+    }
+
     public openInitVim(): Promise<void> {
         const loadInitVim = this._configuration.getValue("oni.loadInitVim")
 
         if (typeof loadInitVim === "string") {
             return this.open(loadInitVim)
         } else {
-            // Use path from: https://github.com/neovim/neovim/wiki/FAQ
-            const rootFolder = Platform.isWindows()
-                ? path.join(process.env["LOCALAPPDATA"], "nvim") // tslint:disable-line no-string-literal
-                : path.join(Platform.getUserHome(), ".config", "nvim")
-
+            const initVimPath = this.getInitVimPath()
+            const rootFolder = path.dirname(initVimPath)
             mkdirp.sync(rootFolder)
-            const initVimPath = path.join(rootFolder, "init.vim")
 
             return this.open(initVimPath)
         }
     }
 
     public eval<T>(expression: string): Promise<T> {
-        return this._neovim.request("nvim_eval", [expression])
+        return this.request("nvim_eval", [expression])
     }
 
     public command(command: string): Promise<any> {
-        // await this._initPromise
         Log.verbose("[NeovimInstance] Executing command: " + command)
-        return this._neovim.request<any>("nvim_command", [command])
+        return this.request<any>("nvim_command", [command])
     }
 
     public callFunction(functionName: string, args: any[]): Promise<any> {
-        return this._neovim.request<void>("nvim_call_function", [functionName, args])
+        return this.request<void>("nvim_call_function", [functionName, args])
     }
 
     public async getBufferIds(): Promise<number[]> {
-        const buffers = await this._neovim.request<NeovimBufferReference[]>("nvim_list_bufs", [])
+        const buffers = await this.request<NeovimBufferReference[]>("nvim_list_bufs", [])
 
         return buffers.map(b => b.id as any)
     }
@@ -595,16 +661,11 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
         return versionInfo[1].version as any
     }
 
-    public dispatchScrollEvent(): void {
-        if (this._pendingScrollTimeout) {
-            return
-        }
-
-        this._pendingScrollTimeout = window.setTimeout(async () => {
-            const evt = await this.getContext()
-            this._onScroll.dispatch(evt)
-            this._pendingScrollTimeout = null
-        })
+    public async quit(): Promise<void> {
+        // This command won't resolve the promise (since it's quitting),
+        // so we're not awaiting..
+        // TODO: Is there a way we can deterministically resolve the promise? Like use the `VimLeave` event?
+        this.command(":qa!")
     }
 
     private async _checkAndFixIfBlocked(): Promise<void> {
@@ -627,6 +688,22 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
         } else {
             Log.info("[NeovimInstance::_checkAndFixIfBlocked] Not blocking mode.")
         }
+    }
+
+    private _dispatchScrollEvent(): void {
+        if (this._pendingScrollTimeout || this._isDisposed) {
+            return
+        }
+
+        this._pendingScrollTimeout = window.setTimeout(async () => {
+            if (this._isDisposed) {
+                return
+            }
+
+            const evt = await this.getContext()
+            this._onScroll.dispatch(evt)
+            this._pendingScrollTimeout = null
+        })
     }
 
     private _resizeInternal(rows: number, columns: number): void {
@@ -662,6 +739,11 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
     }
 
     private _handleNotification(_method: any, args: any): void {
+        if (this._isDisposed) {
+            Log.warn(`[NeovimInstance] - ignoring ${_method} because disposed`)
+            return
+        }
+
         args.forEach((a: any[]) => {
             const command = a[0]
             a = a.slice(1)
@@ -683,6 +765,7 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
                     break
                 case "scroll":
                     this.emit("action", Actions.scroll(a[0][0]))
+                    this._dispatchScrollEvent()
                     break
                 case "highlight_set":
                     const highlightInfo = a[a.length - 1][0]
@@ -860,7 +943,7 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
 
                 this._autoCommands.notifyAutocommand(eventName, eventContext)
 
-                this.emit("event", eventName, eventContext)
+                this._dispatchEvent(eventName, eventContext)
             } else if (pluginMethod === "incremental_buffer_update") {
                 const eventContext = args[0][0]
                 const lineContents = args[0][1]
@@ -877,6 +960,17 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
         } else {
             Log.warn("Unknown notification: " + method)
         }
+    }
+
+    private _dispatchEvent(eventName: string, context: any): void {
+        const eventContext: EventContext = context.current || context
+        this._onVimEvent.dispatch({
+            eventName,
+            eventContext,
+        })
+
+        // TODO: Remove this
+        this.emit("event", eventName, eventContext)
     }
 
     private async _updateProcessDirectory(): Promise<void> {
@@ -924,7 +1018,7 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
         shouldExtTabs: boolean,
         shouldExtPopups: boolean,
     ) {
-        if (major >= 0 && minor >= 2 && patch >= 1) {
+        if (major > 0 || minor > 2 || (minor === 2 && patch >= 1)) {
             const useExtCmdLine = this._configuration.getValue("commandline.mode")
             const useExtWildMenu = this._configuration.getValue("wildmenu.mode")
             return {

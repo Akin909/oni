@@ -6,6 +6,7 @@
 
 import * as React from "react"
 import { connect } from "react-redux"
+import { createSelector } from "reselect"
 
 import * as Oni from "oni-api"
 
@@ -19,6 +20,8 @@ export interface NeovimBufferLayersViewProps {
     activeWindowId: number
     windows: State.IWindow[]
     layers: State.Layers
+    fontPixelWidth: number
+    fontPixelHeight: number
 }
 
 const InnerLayerStyle: React.CSSProperties = {
@@ -37,13 +40,18 @@ export class NeovimBufferLayersView extends React.PureComponent<NeovimBufferLaye
             const layers =
                 this.props.layers[windowState.bufferId] || (EmptyArray as Oni.BufferLayer[])
 
-            const layerContext = {
+            const layerContext: Oni.BufferLayerRenderContext = {
                 isActive: windowState.windowId === this.props.activeWindowId,
                 windowId: windowState.windowId,
-
+                fontPixelWidth: this.props.fontPixelWidth,
+                fontPixelHeight: this.props.fontPixelHeight,
                 bufferToScreen: windowState.bufferToScreen,
                 screenToPixel: windowState.screenToPixel,
+                bufferToPixel: windowState.bufferToPixel,
                 dimensions: windowState.dimensions,
+                visibleLines: windowState.visibleLines,
+                topBufferLine: windowState.topBufferLine,
+                bottomBufferLine: windowState.bottomBufferLine,
             }
 
             const layerElements = layers.map(l => {
@@ -106,25 +114,41 @@ const getWindowPixelDimensions = (win: State.IWindow) => {
     }
 }
 
+const EmptyState: NeovimBufferLayersViewProps = {
+    activeWindowId: -1,
+    layers: {},
+    windows: [],
+    fontPixelHeight: -1,
+    fontPixelWidth: -1,
+}
+
+const getActiveVimTabPage = (state: State.IState) => state.activeVimTabPage
+const getWindowState = (state: State.IState) => state.windowState
+
+const windowSelector = createSelector(
+    [getActiveVimTabPage, getWindowState],
+    (tabPage: State.IVimTabPage, windowState: State.IWindowState) => {
+        const windows = tabPage.windowIds.map(windowId => {
+            return windowState.windows[windowId]
+        })
+
+        return windows.sort((a, b) => a.windowId - b.windowId)
+    },
+)
+
 const mapStateToProps = (state: State.IState): NeovimBufferLayersViewProps => {
     if (!state.activeVimTabPage) {
-        return {
-            activeWindowId: -1,
-            layers: {},
-            windows: [],
-        }
+        return EmptyState
     }
 
-    const windows = state.activeVimTabPage.windowIds.map(windowId => {
-        return state.windowState.windows[windowId]
-    })
-
-    const wins = windows.sort((a, b) => a.windowId - b.windowId)
+    const windows = windowSelector(state)
 
     return {
         activeWindowId: state.windowState.activeWindow,
-        windows: wins,
+        windows,
         layers: state.layers,
+        fontPixelWidth: state.fontPixelWidth,
+        fontPixelHeight: state.fontPixelHeight,
     }
 }
 

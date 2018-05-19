@@ -4,15 +4,17 @@ import * as path from "path"
 
 import { Oni } from "./Oni"
 
-const findProcess = require("find-process") // tslint:disable-line
+import { ensureProcessNotRunning } from "./ensureProcessNotRunning"
 
 // tslint:disable:no-console
 
 export interface ITestCase {
     name: string
     testPath: string
-    configPath: string
     allowLogFailures: boolean
+    env: {
+        [key: string]: string
+    }
 }
 
 export interface IFailedTest {
@@ -33,8 +35,11 @@ const loadTest = (rootPath: string, testName: string): ITestCase => {
     const normalizedMeta: ITestCase = {
         name: testDescription.name || testName,
         testPath: normalizePath(testPath),
-        configPath: getConfigPath(testMeta.settings, rootPath),
         allowLogFailures: testDescription.allowLogFailures,
+        env: {
+            ...(testDescription.env || {}),
+            ONI_CONFIG_FILE: getConfigPath(testMeta.settings, rootPath),
+        },
     }
 
     return normalizedMeta
@@ -46,14 +51,18 @@ const getConfigPath = (settings: any, rootPath: string) => {
     settings = settings || {}
 
     if (settings.configPath) {
-        return normalizePath(path.join(rootPath, settings.configPath))
+        if (!path.isAbsolute(settings.configPath)) {
+            return normalizePath(path.join(rootPath, settings.configPath))
+        } else {
+            return settings.configPath
+        }
     } else if (settings.config) {
         return normalizePath(serializeConfig(settings.config))
     } else {
         // Fix #1436 - if no config is specified, we'll just use
         // the empty config, so that the user's config doesn't
         // impact the test results.
-        return normalizePath(serializeConfig({}))
+        return normalizePath(serializeConfig({ "oni.loadInitVim": false }))
     }
 }
 
@@ -88,78 +97,26 @@ const logWithTimeStamp = (message: string) => {
     console.log(`[${deltaInSeconds}] ${message}`)
 }
 
-// Sometimes, on the automation machines, Oni will still be running
-// when starting the test. It will fail if there is an existing instance
-// running, so we need to make sure to finish it.
-const ensureOniNotRunning = async () => {
-    let attempts = 1
-    const maxAttempts = 5
-
-    while (attempts < maxAttempts) {
-        console.log(`${attempts}/${maxAttempts} Active Processes:`)
-
-        const nvimProcessGone = await tryToKillProcess("nvim")
-        const chromeDriverProcessGone = await tryToKillProcess("chromedriver")
-        const oniProcessGone = await tryToKillProcess("oni")
-
-        if (nvimProcessGone && chromeDriverProcessGone && oniProcessGone) {
-            console.log("All processes gone!")
-            return
-        }
-
-        attempts++
-    }
-}
-
-const tryToKillProcess = async (name: string): Promise<boolean> => {
-    const oniProcesses = await findProcess("name", "oni")
-    oniProcesses.forEach(processInfo => {
-        console.log(` - Name: ${processInfo.name} PID: ${processInfo.pid}`)
-    })
-    const isOniProcess = processInfo => processInfo.name.toLowerCase().indexOf(name) >= 0
-    const filteredProcesses = oniProcesses.filter(isOniProcess)
-    console.log(`- Found ${filteredProcesses.length} processes with name:  ${name}`)
-
-    if (filteredProcesses.length === 0) {
-        console.log("No Oni processes found - leaving.")
-        return true
-    }
-
-    filteredProcesses.forEach(processInfo => {
-        console.log("Attemping to kill pid: " + processInfo.pid)
-        // Sometimes, there can be a race condition here. For example,
-        // the process may have closed between when we queried above
-        // and when we try to kill it. So we'll wrap it in a try/catch.
-        try {
-            process.kill(processInfo.pid)
-        } catch (ex) {
-            console.warn(ex)
-        }
-    })
-
-    return false
-}
-
 export const runInProcTest = (
     rootPath: string,
     testName: string,
     timeout: number = 5000,
     failures: IFailedTest[] = null,
 ) => {
-    describe(testName, () => {
+    // tslint:disable-next-line
+    describe(testName, function() {
+        // TODO: See if we can remove this to stabilize tests.
+        this.retries(2)
+
         let testCase: ITestCase
         let oni: Oni
 
         beforeEach(async () => {
             logWithTimeStamp("BEFORE EACH: " + testName)
 
-            logWithTimeStamp(" - Closing existing instances...")
-            await ensureOniNotRunning()
-            logWithTimeStamp(" - Finished closing")
-
             testCase = loadTest(rootPath, testName)
             const startOptions = {
-                configurationPath: testCase.configPath,
+                env: testCase.env,
             }
 
             oni = new Oni()
@@ -171,6 +128,7 @@ export const runInProcTest = (
         afterEach(async () => {
             logWithTimeStamp("[AFTER EACH]: " + testName)
             await oni.close()
+            logWithTimeStamp("[AFTER EACH] Completed " + testName)
         })
 
         it("ci test: " + testName, async () => {
@@ -191,35 +149,47 @@ export const runInProcTest = (
             logWithTimeStamp("waitForExist for 'automated-test-result' complete: " + value)
 
             console.log("Retrieving logs...")
-            const writeLogs = (logs: any[]): void => {
+
+            const isLogFailure = (log: any) => log.level === "SEVERE" && !testCase.allowLogFailures
+            const anyLogFailure = (logs: any[]) => logs.filter(isLogFailure).length > 0
+
+            const writeLogs = (logs: any[], forceWrite?: boolean): void => {
+                const anyFailures = anyLogFailure(logs)
+                const shouldWrite = !result || !result.passed || anyFailures || forceWrite
+
                 logs.forEach(log => {
                     const logMessage = `[${log.level}] ${log.message}`
-                    console.log(logMessage)
 
-                    if (log.level === "SEVERE" && !testCase.allowLogFailures) {
+                    if (shouldWrite) {
+                        console.log(logMessage)
+                    }
+
+                    if (isLogFailure(log)) {
                         assert.ok(false, logMessage)
                     }
                 })
+
+                if (!shouldWrite) {
+                    console.log("Skipping log output since test passed.")
+                }
             }
 
             console.log("Getting result...")
             const resultText = await oni.client.getText(".automated-test-result")
             const result = JSON.parse(resultText)
 
-            if (!result || !result.passed) {
-                const rendererLogs: any[] = await oni.client.getRenderProcessLogs()
-                console.log("")
-                console.log("---LOGS (Renderer): " + testName)
-                writeLogs(rendererLogs)
-                console.log("--- " + testName + " ---")
+            const rendererLogs: any[] = await oni.client.getRenderProcessLogs()
+            console.log("")
+            console.log("---LOGS (Renderer): " + testName)
+            writeLogs(rendererLogs)
+            console.log("--- " + testName + " ---")
 
-                const mainProcessLogs: any[] = await oni.client.getMainProcessLogs()
-                console.log("---LOGS (Main): " + testName)
-                writeLogs(mainProcessLogs)
-                console.log("--- " + testName + " ---")
-            } else {
-                console.log("-- LOGS: Skipped writing logs because the test passed.")
-            }
+            const mainProcessLogs: any[] = await oni.client.getMainProcessLogs()
+            console.log("---LOGS (Main): " + testName)
+            mainProcessLogs.forEach(l => {
+                console.log(l)
+            })
+            console.log("--- " + testName + " ---")
 
             console.log("")
             logWithTimeStamp("---RESULT: " + testName)

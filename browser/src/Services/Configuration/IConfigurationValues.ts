@@ -14,8 +14,8 @@ export type FontSmoothingOptions = "auto" | "antialiased" | "subpixel-antialiase
 export type DetectionSettings = "always" | "noworkspace" | "never"
 
 export interface IConfigurationValues {
-    activate: (oni: Oni.Plugin.Api) => void
-    deactivate: () => void
+    activate?: (oni: Oni.Plugin.Api) => void
+    deactivate?: () => void
 
     // Debug settings
     "debug.fixedSize": {
@@ -36,15 +36,18 @@ export interface IConfigurationValues {
     "debug.fakeLag.languageServer": number | null
     "debug.fakeLag.neovimInput": number | null
 
+    "debug.showNotificationOnError": boolean
+
     "editor.split.mode": string
 
     "configuration.editor": string
+    "configuration.showReferenceBuffer": boolean
 
     // - textMateHighlighting
     "editor.textMateHighlighting.enabled": boolean
 
     // Whether or not the learning pane is available
-    "experimental.learning.enabled": boolean
+    "experimental.particles.enabled": boolean
 
     // The transport to use for Neovim
     // Valid values are "stdio" and "pipe"
@@ -52,6 +55,9 @@ export interface IConfigurationValues {
     "wildmenu.mode": boolean
     "commandline.mode": boolean
     "commandline.icons": boolean
+
+    // Experimental flag for 'generalized preview'
+    "experimental.preview.enabled": boolean
 
     "experimental.welcome.enabled": boolean
 
@@ -93,6 +99,12 @@ export interface IConfigurationValues {
 
     // Editor settings
 
+    // Setting this to "webgl" switches to the experimental
+    // WebGL-based renderer. Please be aware that this might
+    // lead to instability or unexpected behavior until it is
+    // considered stable.
+    "editor.renderer": "canvas" | "webgl"
+
     "editor.backgroundOpacity": number
     "editor.backgroundImageUrl": string
     "editor.backgroundImageSize": string
@@ -119,6 +131,8 @@ export interface IConfigurationValues {
     "editor.quickInfo.enabled": boolean
     // Delay (in ms) for showing QuickInfo, when the cursor is on a term
     "editor.quickInfo.delay": number
+    "editor.quickOpen.defaultOpenMode": Oni.FileOpenMode
+    "editor.quickOpen.alternativeOpenMode": Oni.FileOpenMode
 
     "editor.errors.slideOnFocus": boolean
     "editor.formatting.formatOnSwitchToNormalMode": boolean // TODO: Make this setting reliable. If formatting is slow, it will hose edits... not fun
@@ -183,6 +197,12 @@ export interface IConfigurationValues {
     // 'zero-latency' mode typing, and increases responsiveness.
     "editor.typingPrediction": boolean
 
+    // Files deleted in the explorer can be persisted for the duration
+    // of the session meaning that deletion can be undone is this is set
+    // to true
+    "explorer.persistDeletedFiles": boolean
+    "explorer.maxUndoFileSizeInBytes": number
+
     "editor.fullScreenOnStart": boolean
     "editor.maximizeScreenOnStart": boolean
 
@@ -191,6 +211,11 @@ export interface IConfigurationValues {
 
     "editor.cursorColumn": boolean
     "editor.cursorColumnOpacity": number
+
+    "keyDisplayer.showInInsertMode": boolean
+
+    "learning.enabled": boolean
+    "achievements.enabled": boolean
 
     // Case-sensitivity strategy for menu filtering:
     // - if `true`, is case sensitive
@@ -212,10 +237,32 @@ export interface IConfigurationValues {
     "recorder.copyScreenshotToClipboard": boolean
 
     "sidebar.enabled": boolean
+    "sidebar.default.open": boolean
     "sidebar.width": string
 
     "sidebar.marks.enabled": boolean
     "sidebar.plugins.enabled": boolean
+
+    "oni.plugins.prettier": {
+        settings: {
+            semi: boolean
+            tabWidth: number
+            useTabs: boolean
+            singleQuote: boolean
+            trailingComma: "es5" | "all" | "none"
+            bracketSpacing: boolean
+            jsxBracketSameLine: boolean
+            arrowParens: "avoid" | "always"
+            printWidth: number
+            [key: string]: number | string | boolean
+        }
+        formatOnSave: boolean
+        enabled: boolean
+        allowedFiletypes?: string[]
+    }
+
+    "snippets.enabled": boolean
+    "snippets.userSnippetFolder": string
 
     "statusbar.enabled": boolean
     "statusbar.fontSize": string
@@ -252,6 +299,8 @@ export interface IConfigurationValues {
     // Whether or not the file icon
     // should be shown in the tab
     "tabs.showFileIcon": boolean
+
+    "terminal.shellCommand": string
 
     "ui.animations.enabled": boolean
     "ui.iconTheme": string

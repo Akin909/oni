@@ -225,9 +225,11 @@ export interface ISetWindowState {
 
         bufferToScreen: Oni.Coordinates.BufferToScreen
         screenToPixel: Oni.Coordinates.ScreenToPixel
+        bufferToPixel: Oni.Coordinates.BufferToPixel
 
         topBufferLine: number
         bottomBufferLine: number
+        visibleLines: string[]
     }
 }
 
@@ -526,13 +528,37 @@ export const setWindowState = (
     topBufferLine: number,
     dimensions: Oni.Shapes.Rectangle,
     bufferToScreen: Oni.Coordinates.BufferToScreen,
+    visibleLines: string[],
 ) => (dispatch: DispatchFunction, getState: GetStateFunction) => {
     const { fontPixelWidth, fontPixelHeight } = getState()
 
-    const screenToPixel = (screenSpace: Oni.Coordinates.ScreenSpacePoint) => ({
-        pixelX: screenSpace.screenX * fontPixelWidth,
-        pixelY: screenSpace.screenY * fontPixelHeight,
-    })
+    const screenToPixel = (screenSpace: Oni.Coordinates.ScreenSpacePoint) => {
+        if (
+            !screenSpace ||
+            typeof screenSpace.screenX !== "number" ||
+            typeof screenSpace.screenY !== "number"
+        ) {
+            return {
+                pixelX: NaN,
+                pixelY: NaN,
+            }
+        }
+
+        return {
+            pixelX: screenSpace.screenX * fontPixelWidth,
+            pixelY: screenSpace.screenY * fontPixelHeight,
+        }
+    }
+
+    const bufferToPixel = (position: types.Position): Oni.Coordinates.PixelSpacePoint => {
+        const screenPosition = bufferToScreen(position)
+
+        if (!screenPosition) {
+            return null
+        }
+
+        return screenToPixel(screenPosition)
+    }
 
     dispatch({
         type: "SET_WINDOW_STATE",
@@ -545,8 +571,10 @@ export const setWindowState = (
             line,
             bufferToScreen,
             screenToPixel,
+            bufferToPixel,
             bottomBufferLine,
             topBufferLine,
+            visibleLines,
         },
     })
 }
