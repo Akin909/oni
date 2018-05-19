@@ -880,8 +880,7 @@ export class NeovimEditor extends Editor implements IEditor {
                 [Oni.FileOpenMode.ExistingTab]: "e!",
             },
             {
-                get: (target: { [cmd: string]: string }, name: string) =>
-                    name in target ? target[name] : "e!",
+                get: (target, name) => (name in target ? target[name] : "e!"),
             },
         )
 
@@ -1187,17 +1186,30 @@ export class NeovimEditor extends Editor implements IEditor {
         })
     }
 
+    private _notifyOfDeletion(): void {
+        const lastBuffer = this.activeBuffer
+        if (lastBuffer && lastBuffer.filePath) {
+            this.notifyBufferDelete({
+                filePath: lastBuffer.filePath,
+                language: lastBuffer.language,
+            })
+        }
+    }
+
     private async _onBufUnload(evt: BufferEventContext): Promise<void> {
+        this._notifyOfDeletion()
         this._bufferManager.populateBufferList(evt)
         this._neovimInstance.getBufferIds().then(ids => this._actions.setCurrentBuffers(ids))
     }
 
     private async _onBufDelete(evt: BufferEventContext): Promise<void> {
+        this._notifyOfDeletion()
         this._bufferManager.populateBufferList(evt)
         this._neovimInstance.getBufferIds().then(ids => this._actions.setCurrentBuffers(ids))
     }
 
     private async _onBufWipeout(evt: BufferEventContext): Promise<void> {
+        this._notifyOfDeletion()
         this._bufferManager.populateBufferList(evt)
         this._neovimInstance.getBufferIds().then(ids => this._actions.setCurrentBuffers(ids))
     }
