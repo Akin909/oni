@@ -1,6 +1,7 @@
 import * as path from "path"
 import * as React from "react"
 import { connect } from "react-redux"
+import { AutoSizer, List } from "react-virtualized"
 
 import Caret from "./../../UI/components/Caret"
 import { css, styled, withProps } from "./../../UI/components/common"
@@ -11,7 +12,7 @@ import { IState } from "./VersionControlStore"
 
 const Row = styled.div`
     display: flex;
-    span >  {
+    span > {
         margin-right: 0.2em;
     }
 `
@@ -49,6 +50,11 @@ export const SectionTitle = withProps<SelectionProps>(styled.div)`
     justify-content: space-between;
 `
 
+export const Container = styled.div`
+    width: 100%;
+    height: 100%;
+`
+
 interface IModifiedFilesProps {
     files?: string[]
     titleId: string
@@ -65,6 +71,31 @@ const truncate = (str: string) =>
         .slice(-2)
         .join(path.sep)
 
+interface FileProps {
+    filePath: string
+    selectedId: string
+    symbol: string
+    onClick: (path: string) => void
+    style: React.CSSProperties
+}
+
+const File = ({ filePath, onClick, selectedId, symbol, style }: FileProps) => {
+    return (
+        <Sneakable callback={() => onClick(filePath)} key={filePath}>
+            <Column
+                style={style}
+                onClick={() => onClick(filePath)}
+                isSelected={selectedId === filePath}
+            >
+                <Name>{truncate(filePath)}</Name>
+                <Row>
+                    <strong>{symbol}</strong>
+                </Row>
+            </Column>
+        </Sneakable>
+    )
+}
+
 export const GitStatus = ({
     files,
     selectedId,
@@ -73,37 +104,45 @@ export const GitStatus = ({
     toggleVisibility,
     titleId,
     visibility,
-}: IModifiedFilesProps) => (
-    <div>
-        {files && (
-            <div>
-                <SectionTitle
-                    isSelected={selectedId === titleId}
-                    data-test={`${titleId}-${files.length}`}
-                    onClick={toggleVisibility}
-                >
-                    <Caret active={visibility && !!files.length} />
-                    <Title>{titleId.toUpperCase()}</Title>
-                    <strong>{files.length}</strong>
-                </SectionTitle>
-                {visibility &&
-                    files.map(filePath => (
-                        <Sneakable callback={() => onClick(filePath)} key={filePath}>
-                            <Column
-                                onClick={() => onClick(filePath)}
-                                isSelected={selectedId === filePath}
-                            >
-                                <Name>{truncate(filePath)}</Name>
-                                <Row>
-                                    <strong>{symbol}</strong>
-                                </Row>
-                            </Column>
-                        </Sneakable>
-                    ))}
-            </div>
-        )}
-    </div>
-)
+}: IModifiedFilesProps) =>
+    files && (
+        <Container>
+            <SectionTitle
+                isSelected={selectedId === titleId}
+                data-test={`${titleId}-${files.length}`}
+                onClick={toggleVisibility}
+            >
+                <Caret active={visibility && !!files.length} />
+                <Title>{titleId.toUpperCase()}</Title>
+                <strong>{files.length}</strong>
+            </SectionTitle>
+            {visibility && (
+                <AutoSizer>
+                    {({ height, width }) => {
+                        const selectedIndex = files.findIndex(fpath => fpath === selectedId)
+                        return (
+                            <List
+                                width={width}
+                                height={height}
+                                rowHeight={20}
+                                rowCount={files.length}
+                                scrollToIndex={selectedIndex}
+                                rowRenderer={({ index, style }) => (
+                                    <File
+                                        style={style}
+                                        filePath={files[index]}
+                                        selectedId={selectedId}
+                                        symbol={symbol}
+                                        onClick={onClick}
+                                    />
+                                )}
+                            />
+                        )
+                    }}
+                </AutoSizer>
+            )}
+        </Container>
+    )
 
 const StatusContainer = styled.div`
     overflow-x: hidden;
