@@ -19,8 +19,8 @@ export class ErrorInfo extends React.PureComponent<IErrorInfoProps, {}> {
             return null
         }
 
-        const errs = this.props.errors.map(e => (
-            <div className="diagnostic">
+        const errs = this.props.errors.map((e, idx) => (
+            <div className="diagnostic" key={`${e.message}-${idx}`}>
                 <ErrorIcon color={getColorFromSeverity(e.severity)} />
                 <span>{e.message}</span>
             </div>
