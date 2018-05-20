@@ -24,6 +24,7 @@ import { LanguageClientLogger } from "./../../Plugins/Api/LanguageClient/Languag
 
 import * as Helpers from "./../../Plugins/Api/LanguageClient/LanguageClientHelpers"
 
+import { Configuration } from "../Configuration"
 import Process from "./../../Plugins/Api/Process"
 
 import { IServerCapabilities } from "./ServerCapabilities"
@@ -82,7 +83,7 @@ export class LanguageClientProcess {
     constructor(
         private _serverOptions: ServerRunOptions,
         private _initializationOptions: InitializationOptions,
-        private _configuration: any = null,
+        private _configuration: Configuration = null,
     ) {}
 
     public async ensureActive(fileName: string): Promise<rpc.MessageConnection> {
@@ -142,8 +143,8 @@ export class LanguageClientProcess {
         this._lastRootPath = rootPath
 
         this._connection = rpc.createMessageConnection(
-            new rpc.StreamMessageReader(this._process.stdout) as any,
-            new rpc.StreamMessageWriter(this._process.stdin) as any,
+            new rpc.StreamMessageReader(this._process.stdout),
+            new rpc.StreamMessageWriter(this._process.stdin),
             new LanguageClientLogger(),
         )
 

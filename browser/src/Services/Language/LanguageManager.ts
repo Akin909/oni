@@ -23,6 +23,7 @@ import * as Capabilities from "./../../Plugins/Api/Capabilities"
 import { PluginManager } from "./../../Plugins/PluginManager"
 import { LanguageClientState, LanguageClientStatusBar } from "./LanguageClientStatusBar"
 
+import { IEditorWithCandidates } from "./../EditorManager"
 import { listenForWorkspaceEdits } from "./Workspace"
 
 import { IWorkspace } from "./../Workspace"
@@ -53,79 +54,75 @@ export class LanguageManager {
         this._languageClientStatusBar = new LanguageClientStatusBar(this._statusBar)
 
         this._editorManager.anyEditor.onBufferEnter.subscribe(async () => this._onBufferEnter())
-        ;(this._editorManager.anyEditor as any).onBufferDelete.subscribe(
-            (bufferInfo: Oni.EditorBufferEventArgs) => {
-                const { language, filePath } = bufferInfo
+        // FIXME: Add delete event to oni api
+        const editor = this._editorManager.anyEditor as IEditorWithCandidates
+        editor.onBufferDelete.subscribe(bufferInfo => {
+            const { language, filePath } = bufferInfo
 
-                if (this._currentTrackedFile !== filePath) {
-                    return
+            if (this._currentTrackedFile !== filePath) {
+                return
+            }
+
+            this.sendLanguageServerNotification(
+                language,
+                filePath,
+                "textDocument/didClose",
+                Helpers.pathToTextDocumentIdentifierParms(filePath),
+            )
+        })
+
+        this._editorManager.anyEditor.onBufferChanged.subscribe(async change => {
+            const { language, filePath } = change.buffer
+
+            if (this._currentTrackedFile !== filePath) {
+                return
+            }
+
+            const sendBufferThunk = async (capabilities: IServerCapabilities) => {
+                const textDocument = {
+                    uri: Helpers.wrapPathInFileUri(filePath),
+                    version: change.buffer.version,
                 }
 
-                this.sendLanguageServerNotification(
-                    language,
-                    filePath,
-                    "textDocument/didClose",
-                    Helpers.pathToTextDocumentIdentifierParms(filePath),
-                )
-            },
-        )
-
-        this._editorManager.anyEditor.onBufferChanged.subscribe(
-            async (change: Oni.EditorBufferChangedEventArgs) => {
-                const { language, filePath } = change.buffer
-
-                if (this._currentTrackedFile !== filePath) {
-                    return
-                }
-
-                const sendBufferThunk = async (capabilities: IServerCapabilities) => {
-                    const textDocument = {
-                        uri: Helpers.wrapPathInFileUri(filePath),
-                        version: change.buffer.version,
+                // If the service supports incremental capabilities, just pass it directly
+                if (capabilities.textDocumentSync === 2) {
+                    return {
+                        textDocument,
+                        contentChanges: change.contentChanges,
                     }
+                    // Otherwise, get the whole buffer and send it up
+                } else {
+                    const allBufferLines = await change.buffer.getLines()
 
-                    // If the service supports incremental capabilities, just pass it directly
-                    if (capabilities.textDocumentSync === 2) {
-                        return {
-                            textDocument,
-                            contentChanges: change.contentChanges,
-                        }
-                        // Otherwise, get the whole buffer and send it up
-                    } else {
-                        const allBufferLines = await change.buffer.getLines()
-
-                        return {
-                            textDocument,
-                            contentChanges: [{ text: allBufferLines.join(os.EOL) }],
-                        }
+                    return {
+                        textDocument,
+                        contentChanges: [{ text: allBufferLines.join(os.EOL) }],
                     }
                 }
+            }
 
-                this.sendLanguageServerNotification(
-                    language,
-                    filePath,
-                    "textDocument/didChange",
-                    sendBufferThunk,
-                )
-            },
-        )
+            this.sendLanguageServerNotification(
+                language,
+                filePath,
+                "textDocument/didChange",
+                sendBufferThunk,
+            )
+        })
 
-        this._editorManager.anyEditor.onBufferSaved.subscribe(
-            (bufferInfo: Oni.EditorBufferEventArgs) => {
-                const { language, filePath } = bufferInfo
+        this._editorManager.anyEditor.onBufferSaved.subscribe(bufferInfo => {
+            const { language, filePath } = bufferInfo
 
-                if (this._currentTrackedFile !== filePath) {
-                    return
-                }
+            if (this._currentTrackedFile !== filePath) {
+                return
+            }
 
-                this.sendLanguageServerNotification(
-                    language,
-                    filePath,
-                    "textDocument/didSave",
-                    Helpers.pathToTextDocumentIdentifierParms(filePath),
-                )
-            },
-        )
+            this.sendLanguageServerNotification(
+                language,
+                filePath,
+                "textDocument/didSave",
+                Helpers.pathToTextDocumentIdentifierParms(filePath),
+            )
+        })
 
         this.subscribeToLanguageServerNotification("window/showMessage", args => {
             Log.warn("window/showMessage not implemented: " + JSON.stringify(args.toString()))
