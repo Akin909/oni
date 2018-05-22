@@ -5,9 +5,11 @@
  */
 
 import { Reducer, Store } from "redux"
-import { createStore as createReduxStore } from "./../../Redux"
+import { mapTo } from "rxjs/operators"
+import { combineEpics, createEpicMiddleware, ofType, Epic } from "redux-observable"
 
-import { Configuration } from "../Configuration"
+import { createStore as createReduxStore } from "./../../Redux"
+import { Configuration, configuration } from "../Configuration"
 import { DefaultConfiguration } from "../Configuration/DefaultConfiguration"
 import { WindowManager, WindowSplitHandle } from "./../WindowManager"
 import { SidebarContentSplit } from "./SidebarContentSplit"
@@ -178,6 +180,18 @@ const DefaultSidebarState: ISidebarState = {
     width: null,
 }
 
+interface IIncreaseWidthAction {
+    type: "INCREASE_WIDTH"
+}
+
+interface IDecreaseWidthAction {
+    type: "DECREASE_WIDTH"
+}
+
+interface IPersistedWidthAction {
+    type: "PERSIST_WIDTH"
+}
+
 export type SidebarActions =
     | {
           type: "SET_ACTIVE_ID"
@@ -201,12 +215,9 @@ export type SidebarActions =
     | {
           type: "LEAVE"
       }
-    | {
-          type: "INCREASE_WIDTH"
-      }
-    | {
-          type: "DECREASE_WIDTH"
-      }
+    | IIncreaseWidthAction
+    | IDecreaseWidthAction
+    | IPersistedWidthAction
 
 export const changeSize = (change: "increase" | "decrease") => (
     size: string,
@@ -325,6 +336,33 @@ export const entriesReducer: Reducer<ISidebarEntry[]> = (
     }
 }
 
+type Dependencies = { configuration: Configuration }
+
+const updateConfig = (config: Configuration, width: string) =>
+    configuration.setValue("sidebar.width", width, true)
+
+type SidebarEpic = Epic<SidebarActions, ISidebarState, Dependencies>
+
+const persistWidthEpic: SidebarEpic = (action$, store, { configuration }) => {
+    const { width } = store.getState()
+    return action$.pipe(
+        ofType([
+            { type: "DECREASE_WIDTH" } as IDecreaseWidthAction,
+            { type: "INCREASE_WIDTH" } as IIncreaseWidthAction,
+        ]),
+        action => {
+            updateConfig(configuration, width)
+            return action
+        },
+        mapTo({ type: "PERSIST_WIDTH" } as SidebarActions),
+    )
+}
+
 export const createStore = (): Store<ISidebarState> => {
-    return createReduxStore("Sidebar", sidebarReducer, DefaultSidebarState)
+    return createReduxStore("Sidebar", sidebarReducer, DefaultSidebarState, [
+        createEpicMiddleware<SidebarActions, ISidebarState, Dependencies>(
+            combineEpics(persistWidthEpic),
+            { dependencies: { configuration } },
+        ),
+    ])
 }
