@@ -122,11 +122,7 @@ interface IContainerProps {
     updated?: boolean
 }
 
-const SidebarContainer = withProps<IContainerProps>(styled.div)`
-    ${p =>
-        (p.isOver || p.yanked) &&
-        `border: 3px solid ${p.theme["highlight.mode.insert.background"]};`};
-`
+const SidebarContainer = withProps<IContainerProps>(styled.div)``
 
 export class SidebarContainerView extends React.PureComponent<ISidebarContainerViewProps, {}> {
     public render(): JSX.Element {
