@@ -4,6 +4,7 @@
  * IEditor implementation for Neovim
  */
 
+import * as os from "os"
 import * as React from "react"
 
 import "rxjs/add/observable/defer"
@@ -20,9 +21,8 @@ import { bindActionCreators, Store } from "redux"
 import { clipboard, ipcRenderer } from "electron"
 
 import * as Oni from "oni-api"
+import * as Log from "oni-core-logging"
 import { Event, IEvent } from "oni-types"
-
-import * as Log from "./../../Log"
 
 import { addDefaultUnitIfNeeded } from "./../../Font"
 import {
@@ -206,12 +206,7 @@ export class NeovimEditor extends Editor implements IEditor {
         this._bufferManager = new BufferManager(this._neovimInstance, this._actions, this._store)
         this._screen = new NeovimScreen()
 
-        this._hoverRenderer = new HoverRenderer(
-            this._colors,
-            this,
-            this._configuration,
-            this._toolTipsProvider,
-        )
+        this._hoverRenderer = new HoverRenderer(this, this._configuration, this._toolTipsProvider)
 
         this._definition = new Definition(this, this._store)
         this._symbols = new Symbols(
@@ -420,7 +415,9 @@ export class NeovimEditor extends Editor implements IEditor {
                     const isAllowed = isYankAndAllowed || isDeleteAndAllowed
 
                     if (isAllowed) {
-                        clipboard.writeText(yankInfo.regcontents.join(require("os").EOL))
+                        const content = yankInfo.regcontents.join(os.EOL)
+                        const postfix = yankInfo.regtype === "V" ? os.EOL : ""
+                        clipboard.writeText(content + postfix)
                     }
                 }
             }),
@@ -866,6 +863,19 @@ export class NeovimEditor extends Editor implements IEditor {
         await this._neovimInstance.request("nvim_call_atomic", [atomicCalls])
     }
 
+    public async setTextOptions(textOptions: Oni.EditorTextOptions): Promise<void> {
+        const { insertSpacesForTab, tabSize } = textOptions
+        if (insertSpacesForTab) {
+            await this._neovimInstance.command("set expandtab")
+        } else {
+            await this._neovimInstance.command("set noexpandtab")
+        }
+
+        await this._neovimInstance.command(
+            `set tabstop=${tabSize} shiftwidth=${tabSize} softtabstop=${tabSize}`,
+        )
+    }
+
     public async openFile(
         file: string,
         openOptions: Oni.FileOpenOptions = Oni.DefaultFileOpenOptions,
@@ -1217,10 +1227,11 @@ export class NeovimEditor extends Editor implements IEditor {
     private _onConfigChanged(newValues: Partial<IConfigurationValues>): void {
         const fontFamily = this._configuration.getValue("editor.fontFamily")
         const fontSize = addDefaultUnitIfNeeded(this._configuration.getValue("editor.fontSize"))
+        const fontWeight = this._configuration.getValue("editor.fontWeight")
         const linePadding = this._configuration.getValue("editor.linePadding")
 
-        this._actions.setFont(fontFamily, fontSize)
-        this._neovimInstance.setFont(fontFamily, fontSize, linePadding)
+        this._actions.setFont(fontFamily, fontSize, fontWeight)
+        this._neovimInstance.setFont(fontFamily, fontSize, fontWeight, linePadding)
 
         Object.keys(newValues).forEach(key => {
             const value = newValues[key]
