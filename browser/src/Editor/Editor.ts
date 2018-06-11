@@ -26,6 +26,7 @@ export class Editor extends Disposable implements Oni.Editor {
     private _currentMode: string
     private _onBufferEnterEvent = new Event<Oni.EditorBufferEventArgs>()
     private _onBufferLeaveEvent = new Event<Oni.EditorBufferEventArgs>()
+    private _onBufferDeleteEvent = new Event<Oni.EditorBufferEventArgs>()
     private _onBufferChangedEvent = new Event<Oni.EditorBufferChangedEventArgs>()
     private _onBufferSavedEvent = new Event<Oni.EditorBufferEventArgs>()
     private _onBufferScrolledEvent = new Event<Oni.EditorBufferScrolledEventArgs>()
@@ -55,6 +56,10 @@ export class Editor extends Disposable implements Oni.Editor {
 
     public get onBufferLeave(): IEvent<Oni.EditorBufferEventArgs> {
         return this._onBufferLeaveEvent
+    }
+
+    public get onBufferDelete(): IEvent<Oni.EditorBufferEventArgs> {
+        return this._onBufferDeleteEvent
     }
 
     public get onBufferChanged(): IEvent<Oni.EditorBufferChangedEventArgs> {
@@ -111,6 +116,10 @@ export class Editor extends Disposable implements Oni.Editor {
 
     protected notifyBufferLeave(bufferEvent: Oni.EditorBufferEventArgs): void {
         this._onBufferLeaveEvent.dispatch(bufferEvent)
+    }
+
+    protected notifyBufferDelete(bufferEvent: Oni.EditorBufferEventArgs): void {
+        this._onBufferDeleteEvent.dispatch(bufferEvent)
     }
 
     protected notifyBufferSaved(bufferEvent: Oni.EditorBufferEventArgs): void {

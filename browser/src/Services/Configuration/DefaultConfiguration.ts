@@ -17,6 +17,14 @@ import { ocamlAndReasonConfiguration, ocamlLanguageServerPath } from "./ReasonCo
 
 const noop = () => {} // tslint:disable-line no-empty
 
+export const typescriptLanguageServerPath = path.join(
+    __dirname,
+    "node_modules",
+    "typescript-language-server",
+    "lib",
+    "cli.js",
+)
+
 const cssLanguageServerPath = path.join(
     __dirname,
     "node_modules",
@@ -200,6 +208,10 @@ const BaseConfiguration: IConfigurationValues = {
     "language.ocaml.languageServer.command": ocamlLanguageServerPath,
     "language.ocaml.languageServer.arguments": ["--stdio"],
     "language.ocaml.languageServer.configuration": ocamlAndReasonConfiguration,
+
+    "language.typescript.languageServer.rootFiles": ["tsconfig.json", "package.json"],
+    "language.typescript.languageServer.command": typescriptLanguageServerPath,
+    "language.typescript.languageServer.arguments": ["--stdio"],
 
     "language.haskell.languageServer.command": "stack",
     "language.haskell.languageServer.arguments": ["exec", "--", "hie", "--lsp"],

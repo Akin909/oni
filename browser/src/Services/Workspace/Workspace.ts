@@ -76,16 +76,13 @@ export class Workspace implements IWorkspace {
     }
 
     public async applyEdits(edits: types.WorkspaceEdit): Promise<void> {
-        let editsToUse = edits
-        if (edits.documentChanges) {
-            editsToUse = convertTextDocumentEditsToFileMap(edits.documentChanges)
-        }
-
-        const files = Object.keys(editsToUse)
+        const editsToUse = edits.documentChanges
+            ? convertTextDocumentEditsToFileMap(edits.documentChanges)
+            : edits.changes
 
         // TODO: Show modal to grab input
-        // await editorManager.activeEditor.openFiles(files)
 
+        const files = Object.keys(editsToUse)
         const deferredEdits = await files.map((fileUri: string) => {
             return Observable.defer(async () => {
                 const changes = editsToUse[fileUri]
@@ -106,7 +103,6 @@ export class Workspace implements IWorkspace {
             .toPromise()
 
         Log.verbose("[Workspace] Completed applying edits")
-
         // Hide modal
     }
 

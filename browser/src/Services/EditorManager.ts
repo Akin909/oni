@@ -13,6 +13,10 @@ import { Event, IDisposable, IEvent } from "oni-types"
 
 import { remote } from "electron"
 
+export interface IEditorWithCandidates extends Oni.Editor {
+    onBufferDelete: IEvent<Oni.EditorBufferEventArgs>
+}
+
 export class EditorManager implements Oni.EditorManager {
     private _allEditors: Oni.Editor[] = []
     private _activeEditor: Oni.Editor = null
@@ -98,6 +102,7 @@ class AnyEditorProxy implements Oni.Editor {
     private _onModeChanged = new Event<Oni.Vim.Mode>()
     private _onBufferEnter = new Event<Oni.EditorBufferEventArgs>()
     private _onBufferLeave = new Event<Oni.EditorBufferEventArgs>()
+    private _onBufferDelete = new Event<Oni.EditorBufferEventArgs>()
     private _onBufferChanged = new Event<Oni.EditorBufferChangedEventArgs>()
     private _onBufferSaved = new Event<Oni.EditorBufferEventArgs>()
     private _onBufferScrolled = new Event<Oni.EditorBufferScrolledEventArgs>()
@@ -147,6 +152,10 @@ class AnyEditorProxy implements Oni.Editor {
         return this._onBufferLeave
     }
 
+    public get onBufferDelete(): IEvent<Oni.EditorBufferEventArgs> {
+        return this._onBufferDelete
+    }
+
     public get onBufferSaved(): IEvent<Oni.EditorBufferEventArgs> {
         return this._onBufferSaved
     }
@@ -194,7 +203,12 @@ class AnyEditorProxy implements Oni.Editor {
             return
         }
 
+        const newEditorWithCandidates = newEditor as IEditorWithCandidates
+
         this._subscriptions = [
+            newEditorWithCandidates.onBufferDelete.subscribe(val =>
+                this._onBufferDelete.dispatch(val),
+            ),
             newEditor.onModeChanged.subscribe(val => this._onModeChanged.dispatch(val)),
             newEditor.onBufferEnter.subscribe(val => this._onBufferEnter.dispatch(val)),
             newEditor.onBufferLeave.subscribe(val => this._onBufferLeave.dispatch(val)),
