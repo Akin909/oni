@@ -21,6 +21,7 @@ interface IProps {
     left: number
     top: number
     color?: string
+    width?: number
 }
 
 interface IndentLinesProps {
@@ -33,6 +34,28 @@ interface IndentLinesProps {
 }
 
 const Container = styled.div``
+
+const WhiteSpace = withProps<IProps>(styled.span).attrs({
+    style: ({ height, left, top, width }: IProps) => ({
+        height: pixel(height),
+        left: pixel(left),
+        top: pixel(top),
+        width: pixel(width),
+    }),
+})`
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+`
+
+const WhitespaceCircle = styled.div`
+    border-radius: 50%;
+    background-color: ${p => p.color || "rgba(100, 100, 100, 0.4)"};
+    width: 4px;
+    height: 4px;
+`
 
 const IndentLine = withProps<IProps>(styled.span).attrs({
     style: ({ height, left, top }: IProps) => ({
@@ -78,6 +101,27 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
         return isMultiLine
     })
 
+    private _renderWhitespaces = memoize(
+        ({ top, left, color, width, height, spaces }: IProps & { spaces: number }) => {
+            const chars: JSX.Element[] = []
+            for (let i = 0; i < spaces; i++) {
+                chars.push(
+                    <WhiteSpace
+                        top={top}
+                        color={color}
+                        height={height}
+                        width={width}
+                        left={left - width * i}
+                        data-id="indent-whitespace"
+                    >
+                        <WhitespaceCircle />
+                    </WhiteSpace>,
+                )
+            }
+            return chars
+        },
+    )
+
     private _buffer: IBuffer
     private _comments: IBuffer["comment"]
     private _userSpacing: number
@@ -105,17 +149,28 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
         return flatten(
             guidePositions.map(({ line, height, characterWidth, indentBy, left, top }, lineNo) => {
                 const indentation = characterWidth * this._userSpacing
+                const spaces = indentBy * this._userSpacing
+                const whitespaces = this._renderWhitespaces({
+                    top,
+                    height,
+                    spaces,
+                    left: left - characterWidth,
+                    width: characterWidth,
+                })
                 return Array.from({ length: indentBy }, (_, level) => {
                     const adjustedLeft = left - level * indentation - characterWidth
                     return (
-                        <IndentLine
-                            top={top}
-                            color={color}
-                            height={height}
-                            left={adjustedLeft}
-                            key={`${line.trim()}-${lineNo}-${indentation}-${level}`}
-                            data-id="indent-line"
-                        />
+                        <>
+                            <IndentLine
+                                top={top}
+                                color={color}
+                                height={height}
+                                left={adjustedLeft}
+                                key={`${line.trim()}-${lineNo}-${indentation}-${level}`}
+                                data-id="indent-line"
+                            />
+                            {whitespaces}
+                        </>
                     )
                 })
             }),
