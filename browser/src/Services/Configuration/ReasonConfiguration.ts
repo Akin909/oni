@@ -17,6 +17,16 @@ export const ocamlLanguageServerPath = path.join(
     "index.js",
 )
 
+const ext = Platform.isWindows() ? ".exe" : Platform.isLinux() ? ".linux" : ""
+
+export const reasonLanguageServerPath = path.join(__dirname, "binaries", `bin.native${ext}`)
+
+const chmodReasonBinaries = async () => {
+    await Platform._runSudoCommand(`chmod -R a+rwx ${reasonLanguageServerPath}`, {})
+}
+
+chmodReasonBinaries()
+
 // If Windows, wrap in `bash -ic` to support WSL
 const wrapCommand = Platform.isWindows() ? (str: string) => "bash -ic " + str : (str: string) => str
 

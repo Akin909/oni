@@ -13,7 +13,11 @@ import * as path from "path"
 import * as Platform from "./../../Platform"
 
 import { IConfigurationValues } from "./IConfigurationValues"
-import { ocamlAndReasonConfiguration, ocamlLanguageServerPath } from "./ReasonConfiguration"
+import {
+    ocamlAndReasonConfiguration,
+    ocamlLanguageServerPath,
+    reasonLanguageServerPath,
+} from "./ReasonConfiguration"
 
 const noop = () => {} // tslint:disable-line no-empty
 
@@ -233,8 +237,8 @@ const BaseConfiguration: IConfigurationValues = {
     ),
     "language.scss.tokenRegex": "[$_a-zA-Z0-9-]",
 
-    "language.reason.languageServer.command": ocamlLanguageServerPath,
-    "language.reason.languageServer.arguments": ["--stdio"],
+    // "language.reason.languageServer.arguments": ["--stdio"],
+    "language.reason.languageServer.command": reasonLanguageServerPath,
     "language.reason.languageServer.rootFiles": [".merlin", "bsconfig.json"],
     "language.reason.languageServer.configuration": ocamlAndReasonConfiguration,
     "language.reason.textMateGrammar": path.join(

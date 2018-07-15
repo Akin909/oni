@@ -39,7 +39,7 @@ export const addToPath = async () => {
     }
 }
 
-const _runSudoCommand = async (command: string, options: any) => {
+export const _runSudoCommand = async (command: string, options: any) => {
     const sudo = await import("sudo-prompt")
     return new Promise(resolve => {
         sudo.exec(command, options, (error: Error, stdout: string, stderr: string) => {
