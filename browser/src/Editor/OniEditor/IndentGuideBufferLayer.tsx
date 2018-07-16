@@ -1,7 +1,7 @@
 import * as React from "react"
 
 import * as detectIndent from "detect-indent"
-import * as flatten from "lodash/flatten"
+// import * as flatten from "lodash/flatten"
 import * as last from "lodash/last"
 import * as memoize from "lodash/memoize"
 import * as Oni from "oni-api"
@@ -71,25 +71,49 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
         return "Indent Guide Lines"
     }
 
-    private _getIndentLines = (guidePositions: IndentLinesProps[], color?: string) => {
-        return flatten(
-            guidePositions.map(({ line, height, characterWidth, indentBy, left, top }, lineNo) => {
-                const indentation = characterWidth * this._userSpacing
-                return Array.from({ length: indentBy }, (_, level) => {
-                    const adjustedLeft = left - level * indentation - characterWidth
-                    return (
-                        <IndentLine
-                            top={top}
-                            color={color}
-                            height={height}
-                            left={adjustedLeft}
-                            key={`${line.trim()}-${lineNo}-${indentation}-${level}`}
-                            data-id="indent-line"
-                        />
-                    )
-                })
-            }),
+    private _getLineFromPositions = (guidePositions: IndentLinesProps[]) => {
+        const lines = guidePositions.reduce(
+            (acc, position, index, positions) => {
+                const next = positions[index + 1]
+                const previous = positions[index - 1]
+                if (!previous || (previous && previous.left !== position.left)) {
+                    acc.currentLine.top = position.top
+                }
+                if (next && position.left === next.left) {
+                    acc.currentLine.left = position.left
+                    acc.currentLine.height += position.height
+                } else {
+                    acc.lines.push(acc.currentLine)
+                    acc.currentLine = { top: 0, left: 0, height: 0 }
+                }
+                return acc
+            },
+            { lines: [], currentLine: { top: 0, left: 0, height: 0 } },
         )
+        console.log("lines: ", lines)
+        return lines.lines
+    }
+
+    private _getIndentLines = (guidePositions: IndentLinesProps[], color?: string) => {
+        const lines = this._getLineFromPositions(guidePositions)
+        // return flatten(
+        // guidePositions.map(({ line, height, characterWidth, indentBy, left, top }, lineNo) => {
+        //     const indentation = characterWidth * this._userSpacing
+        //     return Array.from({ length: indentBy }, (_, level) => {
+        //         const adjustedLeft = left - level * indentation - characterWidth
+        return lines.map((line, i) => (
+            <IndentLine
+                top={line.top}
+                color={color}
+                height={line.height}
+                left={line.left}
+                key={i}
+                data-id="indent-line"
+            />
+        ))
+        //         })
+        //     }),
+        // )
     }
 
     private _getWrappedLines(context: Oni.BufferLayerRenderContext): IWrappedLine[] {
