@@ -221,19 +221,19 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
                 const indentBy = regularisedIndent / this._userSpacing
                 const indentation = fontPixelWidth * this._userSpacing
                 const lines = this._getIndentsPerLine({
-                    line,
                     indentBy,
                     indentation,
-                    left,
-                    top: adjustedTop,
-                    height: adjustedHeight,
                     characterWidth: fontPixelWidth,
+                    height: adjustedHeight,
+                    top: adjustedTop,
+                    left,
+                    line,
                 })
                 acc.allIndentations.push(...lines)
 
                 return acc
             },
-            { allIndentations: [], wrappedHeightAdjustment: 0 },
+            { allIndentations: [] as IndentLinesProps[], wrappedHeightAdjustment: 0 },
         )
 
         return this._getIndentLines(allIndentations, color)
