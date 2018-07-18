@@ -31,6 +31,10 @@ interface IndentLinesProps {
     characterWidth: number
 }
 
+interface LineProps extends IndentLinesProps {
+    indentation: number
+}
+
 const Container = styled.div``
 
 const IndentLine = withProps<IProps>(styled.span).attrs({
@@ -75,23 +79,20 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
         return flatten(
             guidePositions.map(({ line, height, characterWidth, indentBy, left, top }, lineNo) => {
                 const indentation = characterWidth * this._userSpacing
-                return Array.from({ length: indentBy }, (_, level) => {
-                    const adjustedLeft = left - level * indentation + characterWidth / 3
-                    // skip the furthest (inwards) indent if there are one or more indents
-                    const skipIndentLine = !level && indentBy >= 1
-                    return (
-                        !skipIndentLine && (
-                            <IndentLine
-                                top={top}
-                                color={color}
-                                height={height}
-                                left={adjustedLeft}
-                                data-id="indent-line"
-                                key={`${line.trim()}-${lineNo}-${indentation}-${level}`}
-                            />
-                        )
-                    )
-                })
+                // return Array.from({ length: indentBy }, (_, level) => {
+                //     const adjustedLeft = left - level * indentation + characterWidth / 3
+                // skip the furthest (inwards) indent if there are one or more indents
+                return (
+                    <IndentLine
+                        top={top}
+                        color={color}
+                        height={height}
+                        left={left}
+                        data-id="indent-line"
+                        key={`${line.trim()}-${lineNo}-${indentation}`}
+                    />
+                )
+                // })
             }),
         )
     }
@@ -126,6 +127,34 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
         const isOddBy = indentation.amount % this._userSpacing
         const amountToIndent = isOddBy ? indentation.amount - isOddBy : indentation.amount
         return amountToIndent
+    }
+
+    private _getIndentsPerLine = ({
+        indentBy,
+        left,
+        top,
+        line,
+        height,
+        characterWidth,
+        indentation,
+    }: LineProps) => {
+        const indents: IndentLinesProps[] = []
+        for (let level = 0; level < indentBy; level++) {
+            const skipIndentLine = !level && indentBy >= 1
+            if (skipIndentLine) {
+                continue
+            }
+            const adjustedLeft = left - level * indentation + characterWidth / 3
+            indents.push({
+                line,
+                top,
+                height,
+                left: adjustedLeft,
+                characterWidth,
+                indentBy,
+            })
+        }
+        return indents
     }
 
     /**
@@ -189,16 +218,18 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
                     return acc
                 }
 
-                const indent = {
-                    left,
+                const indentBy = regularisedIndent / this._userSpacing
+                const indentation = fontPixelWidth * this._userSpacing
+                const lines = this._getIndentsPerLine({
                     line,
+                    indentBy,
+                    indentation,
+                    left,
                     top: adjustedTop,
                     height: adjustedHeight,
                     characterWidth: fontPixelWidth,
-                    indentBy: regularisedIndent / this._userSpacing,
-                }
-
-                acc.allIndentations.push(indent)
+                })
+                acc.allIndentations.push(...lines)
 
                 return acc
             },
