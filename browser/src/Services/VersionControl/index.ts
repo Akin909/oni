@@ -8,3 +8,4 @@ export { activate, getInstance, VersionControlManager } from "./VersionControlMa
 export { default as VersionControlPane } from "./VersionControlPane"
 export { default as store } from "./VersionControlStore"
 export { default as VersionControlView } from "./VersionControlView"
+export { default as MergeConflictBufferLayer } from "./MergeConflictBufferLayer"

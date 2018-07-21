@@ -1,5 +1,4 @@
 import * as capitalize from "lodash/capitalize"
-import * as Oni from "oni-api"
 import * as Log from "oni-core-logging"
 import * as React from "react"
 import { Provider, Store } from "react-redux"
@@ -7,6 +6,7 @@ import { Provider, Store } from "react-redux"
 import { VersionControlProvider, VersionControlView } from "./"
 import { IWorkspace } from "./../Workspace"
 import { ISendVCSNotification } from "./VersionControlManager"
+import { StatusResult } from "./VersionControlProvider"
 import { VersionControlState } from "./VersionControlStore"
 
 export default class VersionControlPane {
@@ -19,33 +19,12 @@ export default class VersionControlPane {
     }
 
     constructor(
-        private _editorManager: Oni.EditorManager,
         private _workspace: IWorkspace,
         private _vcsProvider: VersionControlProvider,
-        private _sendNotification: ISendVCSNotification,
         private _store: Store<VersionControlState>,
-    ) {
-        this._editorManager.activeEditor.onBufferSaved.subscribe(async () => {
-            await this.getStatus()
-        })
-
-        this._vcsProvider.onBranchChanged.subscribe(async () => {
-            await this.getStatus()
-        })
-
-        this._vcsProvider.onStagedFilesChanged.subscribe(async () => {
-            await this.getStatus()
-        })
-
-        this._vcsProvider.onPluginActivated.subscribe(async () => {
-            this._store.dispatch({ type: "ACTIVATE" })
-            await this.getStatus()
-        })
-
-        this._vcsProvider.onPluginDeactivated.subscribe(() => {
-            this._store.dispatch({ type: "DEACTIVATE" })
-        })
-    }
+        private _sendNotification: ISendVCSNotification,
+        public getStatus: () => Promise<void | StatusResult>,
+    ) {}
 
     public enter(): void {
         this._store.dispatch({ type: "ENTER" })
@@ -56,14 +35,6 @@ export default class VersionControlPane {
 
     public leave(): void {
         this._store.dispatch({ type: "LEAVE" })
-    }
-
-    public getStatus = async () => {
-        const status = await this._vcsProvider.getStatus()
-        if (status) {
-            this._store.dispatch({ type: "STATUS", payload: { status } })
-        }
-        return status
     }
 
     public stageFile = async (file: string) => {

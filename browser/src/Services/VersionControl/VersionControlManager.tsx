@@ -20,6 +20,7 @@ interface ISendNotificationsArgs {
 export type ISendVCSNotification = (args: ISendNotificationsArgs) => void
 
 export class VersionControlManager {
+    private _store = store
     private _vcs: SupportedProviders
     private _vcsProvider: VersionControlProvider
     private _menuInstance: Oni.Menu.MenuInstance
@@ -59,6 +60,14 @@ export class VersionControlManager {
                 await this.handleProviderStatus(providerToUse)
             })
         }
+    }
+
+    public getStatus = async () => {
+        const status = await this._vcsProvider.getStatus()
+        if (status) {
+            this._store.dispatch({ type: "STATUS", payload: { status } })
+        }
+        return status
     }
 
     // Use arrow function to maintain this binding of sendNotification
@@ -136,11 +145,11 @@ export class VersionControlManager {
 
             if (!hasVcsSidebar && enabled) {
                 const vcsPane = new VersionControlPane(
-                    this._editorManager,
                     this._workspace,
                     this._vcsProvider,
+                    this._store,
                     this.sendNotification,
-                    store,
+                    this.getStatus,
                 )
                 this._sidebar.add("code-fork", vcsPane)
             }
@@ -153,18 +162,30 @@ export class VersionControlManager {
 
     private _setupSubscriptions() {
         this._subscriptions = [
-            this._editorManager.activeEditor.onBufferEnter.subscribe(async () => {
+            this._editorManager.activeEditor.onBufferEnter.subscribe(async buffer => {
                 await this._updateBranchIndicator()
             }),
             this._vcsProvider.onBranchChanged.subscribe(async newBranch => {
+                await this.getStatus()
                 await this._updateBranchIndicator(newBranch)
                 await this._editorManager.activeEditor.neovim.command("e!")
             }),
             this._editorManager.activeEditor.onBufferSaved.subscribe(async () => {
                 await this._updateBranchIndicator()
+                await this.getStatus()
             }),
             (this._workspace as any).onFocusGained.subscribe(async () => {
                 await this._updateBranchIndicator()
+            }),
+            this._vcsProvider.onStagedFilesChanged.subscribe(async () => {
+                await this.getStatus()
+            }),
+            this._vcsProvider.onPluginActivated.subscribe(async () => {
+                this._store.dispatch({ type: "ACTIVATE" })
+                await this.getStatus()
+            }),
+            this._vcsProvider.onPluginDeactivated.subscribe(() => {
+                this._store.dispatch({ type: "DEACTIVATE" })
             }),
         ]
     }
