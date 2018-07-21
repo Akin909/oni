@@ -2,11 +2,12 @@ import * as React from "react"
 
 import { Diff } from "./../../../Services/VersionControl"
 import styled, { IThemeColors, withProps } from "./../../../UI/components/common"
-import { Icon } from "./../../../UI/Icon"
+import Octicon from "./Octicon"
 
 type ChangeTypes = "change" | "addition" | "deletion"
 
 interface ICreateIconArgs {
+    name: string
     type: ChangeTypes
     num: number
 }
@@ -61,7 +62,7 @@ export const Branch: React.SFC<BranchProps> = ({ diff, branch, children }) =>
     branch && (
         <BranchContainer>
             <BranchText>
-                <Icon name="code-fork" />
+                <Octicon name="git-branch" />
                 <BranchNameContainer>
                     {`${branch} `}
                     {diff && (
@@ -76,18 +77,6 @@ export const Branch: React.SFC<BranchProps> = ({ diff, branch, children }) =>
         </BranchContainer>
     )
 
-const getClassNameForType = (type: ChangeTypes) => {
-    switch (type) {
-        case "addition":
-            return "plus-circle"
-        case "deletion":
-            return "minus-circle"
-        case "change":
-        default:
-            return "question-circle"
-    }
-}
-
 interface ChangesProps {
     deletions: number
     insertions: number
@@ -95,17 +84,17 @@ interface ChangesProps {
 
 export const DeletionsAndInsertions: React.SFC<ChangesProps> = ({ deletions, insertions }) => (
     <span>
-        <VCSIcon type="addition" num={insertions} />
+        <VCSIcon name="diff-added" type="addition" num={insertions} />
         {!!(deletions && insertions) && <span key={2}>, </span>}
-        <VCSIcon type="deletion" num={deletions} />
+        <VCSIcon name="diff-removed" type="deletion" num={deletions} />
     </span>
 )
 
-export const VCSIcon: React.SFC<ICreateIconArgs> = ({ type, num }) =>
+export const VCSIcon: React.SFC<ICreateIconArgs> = ({ type, name, num }) =>
     !!num && (
         <span>
             <ChangeSpanContainer type={type}>
-                <Icon name={getClassNameForType(type)} />
+                <Octicon name={name} />
             </ChangeSpanContainer>
             <ChangeSpan data-test={`${type}-${num}`}>{num}</ChangeSpan>
         </span>
