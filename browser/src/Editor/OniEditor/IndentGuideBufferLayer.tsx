@@ -210,6 +210,7 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
                 const rawIndentation = detectIndent(line)
 
                 const regularisedIndent = this._regulariseIndentation(rawIndentation)
+                const indentBy = regularisedIndent / this._userSpacing
 
                 const previous = last(acc.allIndentations)
                 const height = Math.ceil(fontPixelHeight)
@@ -242,9 +243,9 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
 
                 if (!line && previous) {
                     const next = visibleLines[currenLineNumber + 1]
-                    const continueIndentLine = next
-                        ? this._regulariseIndentation(detectIndent(next)) === previous.indentation
-                        : false
+                    const nextIndent = next ? this._regulariseIndentation(detectIndent(next)) : null
+                    const continueIndentLine =
+                        next && nextIndent === previous.indentation && indentBy <= 2
 
                     acc.allIndentations.push({
                         ...previous,
@@ -263,7 +264,7 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
                     height: adjustedHeight,
                     indentation: regularisedIndent,
                     characterWidth: fontPixelWidth,
-                    indentBy: regularisedIndent / this._userSpacing,
+                    indentBy,
                 }
 
                 acc.allIndentations.push(indent)
