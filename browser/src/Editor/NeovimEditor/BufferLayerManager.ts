@@ -69,6 +69,14 @@ export class BufferLayerManager {
     }
 }
 
+// creates an instance and exports the singleton
+export default (() => {
+    const instance = new BufferLayerManager()
+    return function getInstance() {
+        return instance
+    }
+})()
+
 export const wrapReactComponentWithLayer = (
     id: string,
     component: JSX.Element,

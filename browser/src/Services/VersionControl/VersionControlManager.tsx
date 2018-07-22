@@ -4,7 +4,14 @@ import * as Log from "oni-core-logging"
 import { IDisposable } from "oni-types"
 import * as React from "react"
 
-import { store, SupportedProviders, VersionControlPane, VersionControlProvider } from "./"
+import {
+    MergeConflictBufferLayer,
+    store,
+    SupportedProviders,
+    VersionControlPane,
+    VersionControlProvider,
+} from "./"
+import getBufferLayerManagerInstance from "./../../Editor/NeovimEditor/BufferLayerManager"
 import { Notifications } from "./../../Services/Notifications"
 import { Branch } from "./../../UI/components/VersionControl"
 import { MenuManager } from "./../Menu"
@@ -27,6 +34,7 @@ export class VersionControlManager {
     private _vcsStatusItem: Oni.StatusBarItem
     private _subscriptions: IDisposable[] = []
     private _providers = new Map<string, VersionControlProvider>()
+    private _bufferLayerManager = getBufferLayerManagerInstance()
 
     constructor(
         private _workspace: IWorkspace,
@@ -68,6 +76,11 @@ export class VersionControlManager {
             this._store.dispatch({ type: "STATUS", payload: { status } })
         }
         return status
+    }
+
+    public isConflictedBuffer = (buf: Oni.EditorBufferEventArgs) => {
+        const { status } = this._store.getState()
+        return status && status.conflicted && status.conflicted.includes(buf.filePath)
     }
 
     // Use arrow function to maintain this binding of sendNotification
@@ -143,6 +156,9 @@ export class VersionControlManager {
             const hasVcsSidebar = this._sidebar.entries.some(({ id }) => id.includes("vcs"))
             const enabled = this._configuration.getValue("experimental.vcs.sidebar")
 
+            // this._vcsManager.isConflictedBuffer,
+            this._bufferLayerManager.addBufferLayer("*", buf => new MergeConflictBufferLayer(this))
+
             if (!hasVcsSidebar && enabled) {
                 const vcsPane = new VersionControlPane(
                     this._workspace,
@@ -165,17 +181,17 @@ export class VersionControlManager {
             this._editorManager.activeEditor.onBufferEnter.subscribe(async buffer => {
                 await this._updateBranchIndicator()
             }),
-            this._vcsProvider.onBranchChanged.subscribe(async newBranch => {
-                await this.getStatus()
-                await this._updateBranchIndicator(newBranch)
-                await this._editorManager.activeEditor.neovim.command("e!")
-            }),
             this._editorManager.activeEditor.onBufferSaved.subscribe(async () => {
                 await this._updateBranchIndicator()
                 await this.getStatus()
             }),
             (this._workspace as any).onFocusGained.subscribe(async () => {
                 await this._updateBranchIndicator()
+            }),
+            this._vcsProvider.onBranchChanged.subscribe(async newBranch => {
+                await this.getStatus()
+                await this._updateBranchIndicator(newBranch)
+                await this._editorManager.activeEditor.neovim.command("e!")
             }),
             this._vcsProvider.onStagedFilesChanged.subscribe(async () => {
                 await this.getStatus()

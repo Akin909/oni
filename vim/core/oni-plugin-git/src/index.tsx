@@ -20,6 +20,7 @@ export class GitVersionControlProvider implements VCS.VersionControlProvider {
     private _onPluginActivated = new Event<void>("Oni::VCSPluginActivated")
     private _onPluginDeactivated = new Event<void>("Oni::VCSPluginDeactivated")
     private _onBranchChange = new Event<VCS.BranchChangedEvent>("Oni::VCSBranchChanged")
+    private _onConflictDetected = new Event<VCS.MergeConflictEvent>("Oni::VCSMergeConflict")
     private _onStagedFilesChanged = new Event<VCS.StagedFilesChangedEvent>(
         "Oni::VCSStagedFilesChanged",
     )
@@ -38,6 +39,10 @@ export class GitVersionControlProvider implements VCS.VersionControlProvider {
 
     get onBranchChanged(): IEvent<VCS.BranchChangedEvent> {
         return this._onBranchChange
+    }
+
+    get onMergeConflict(): IEvent<VCS.MergeConflictEvent> {
+        return this._onConflictDetected
     }
 
     get onFileStatusChanged(): IEvent<VCS.FileStatusChangedEvent> {
@@ -101,6 +106,9 @@ export class GitVersionControlProvider implements VCS.VersionControlProvider {
         try {
             const status = await this._git(this._projectRoot).status()
             const { modified, staged } = this._getModifiedAndStaged(status.files)
+            if (status.conflicted.length) {
+                this._onConflictDetected.dispatch(status.conflicted)
+            }
             return {
                 staged,
                 modified,

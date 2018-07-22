@@ -65,6 +65,7 @@ export const layer = css`
 export const StackLayer = styled<{ zIndex?: number | string }, "div">("div")`
     ${stack};
     ${layer};
+    overflow: hidden;
     ${p => p.zIndex && `z-index: ${p.zIndex}`};
 `
 

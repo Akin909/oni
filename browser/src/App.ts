@@ -297,7 +297,6 @@ export const start = async (args: string[]): Promise<void> => {
             Themes.getThemeManagerInstance(),
             TokenColors.getInstance(),
             workspace,
-            VCSManager.getInstance(),
         )
 
         await SharedNeovimInstance.activate(configuration, pluginManager)

@@ -49,7 +49,6 @@ import { ErrorsContainer } from "./containers/ErrorsContainer"
 
 import { NeovimEditor } from "./../NeovimEditor"
 
-import { VersionControlManager, MergeConflictBufferLayer } from "./../../Services/VersionControl"
 import { SplitDirection, windowManager } from "./../../Services/WindowManager"
 
 import { IBuffer } from "../BufferManager"
@@ -126,7 +125,6 @@ export class OniEditor extends Utility.Disposable implements IEditor {
         private _themeManager: ThemeManager,
         private _tokenColors: TokenColors,
         private _workspace: Workspace,
-        private _vcsManager: VersionControlManager,
     ) {
         super()
 
@@ -201,11 +199,6 @@ export class OniEditor extends Utility.Disposable implements IEditor {
                 _buf => new ColorHighlightLayer(this._configuration),
             )
         }
-
-        this._neovimEditor.bufferLayers.addBufferLayer(
-            () => true,
-            _buf => new MergeConflictBufferLayer(this._vcsManager),
-        )
     }
 
     public dispose(): void {

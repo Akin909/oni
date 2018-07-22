@@ -3,6 +3,7 @@ import { BranchSummary, FetchResult } from "simple-git/promise"
 
 export type BranchChangedEvent = string
 export type StagedFilesChangedEvent = string
+export type MergeConflictEvent = string[]
 export interface FileStatusChangedEvent {
     path: string
     status: "staged"
@@ -28,6 +29,7 @@ export interface VersionControlProvider {
     onBranchChanged: IEvent<BranchChangedEvent>
     onPluginActivated: IEvent<void>
     onPluginDeactivated: IEvent<void>
+    onMergeConflict: IEvent<MergeConflictEvent>
 
     name: SupportedProviders
     isActivated: boolean

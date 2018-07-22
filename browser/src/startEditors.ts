@@ -20,7 +20,6 @@ import { ThemeManager } from "./Services/Themes"
 import { TokenColors } from "./Services/TokenColors"
 import { windowManager } from "./Services/WindowManager"
 import { Workspace } from "./Services/Workspace"
-import { VersionControlManager } from "./Services/VersionControl"
 
 export const startEditors = async (
     args: any,
@@ -36,7 +35,6 @@ export const startEditors = async (
     themeManager: ThemeManager,
     tokenColors: TokenColors,
     workspace: Workspace,
-    vcsManager: VersionControlManager,
 ): Promise<void> => {
     const editor = new OniEditor(
         colors,
@@ -51,7 +49,6 @@ export const startEditors = async (
         themeManager,
         tokenColors,
         workspace,
-        vcsManager,
     )
     windowManager.createSplit("horizontal", editor)
 

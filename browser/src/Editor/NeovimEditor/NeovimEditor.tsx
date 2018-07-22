@@ -80,7 +80,7 @@ import { asObservable, normalizePath, sleep } from "./../../Utility"
 
 import * as VimConfigurationSynchronizer from "./../../Services/VimConfigurationSynchronizer"
 
-import { BufferLayerManager } from "./BufferLayerManager"
+import getBufferLayerManagerInstance, { BufferLayerManager } from "./BufferLayerManager"
 import { Definition } from "./Definition"
 import * as ActionCreators from "./NeovimEditorActions"
 import { NeovimEditorCommands } from "./NeovimEditorCommands"
@@ -141,8 +141,8 @@ export class NeovimEditor extends Editor implements IEditor {
     private _toolTipsProvider: IToolTipsProvider
     private _commands: NeovimEditorCommands
     private _externalMenuOverlay: Overlay
-    private _bufferLayerManager: BufferLayerManager
     private _screenWithPredictions: ScreenWithPredictions
+    private _bufferLayerManager = getBufferLayerManagerInstance()
 
     private _onNeovimQuit: Event<void> = new Event<void>()
 
@@ -199,8 +199,6 @@ export class NeovimEditor extends Editor implements IEditor {
         this._store = createStore()
         this._actions = bindActionCreators(ActionCreators as any, this._store.dispatch)
         this._toolTipsProvider = new NeovimEditorToolTipsProvider(this._actions)
-
-        this._bufferLayerManager = new BufferLayerManager()
 
         this._contextMenuManager = new ContextMenuManager(this._toolTipsProvider, this._colors)
 
