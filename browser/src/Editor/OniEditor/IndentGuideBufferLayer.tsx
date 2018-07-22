@@ -39,6 +39,8 @@ interface IndentLinesProps {
     indentBy: number
     indentSize: number
     characterWidth: number
+    indentation: number
+    continueIndentLine: boolean
 }
 
 const Container = styled.div``
@@ -118,7 +120,11 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
      * @returns {boolean} Whether or not the current indent should be skipped
      */
     private _determineIfShouldSkip(props: LinePropsWithLevels, options: ConfigOptions) {
-        const isEmpty = !props.line && props.indentBy > 1 && !props.levelOfIndentation
+        const isEmpty =
+            !props.line &&
+            props.indentBy > 1 &&
+            !props.levelOfIndentation &&
+            !props.continueIndentLine
         const skipFirstIndentLine =
             options.skipFirst && props.levelOfIndentation === props.indentBy - 1
         const shouldSkip = skipFirstIndentLine || isEmpty
@@ -235,10 +241,16 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
                 }
 
                 if (!line && previous) {
+                    const next = visibleLines[currenLineNumber + 1]
+                    const continueIndentLine = next
+                        ? this._regulariseIndentation(detectIndent(next)) === previous.indentation
+                        : false
+
                     acc.allIndentations.push({
                         ...previous,
                         line,
                         top: adjustedTop,
+                        continueIndentLine,
                     })
                     return acc
                 }
@@ -249,6 +261,7 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
                     indentSize,
                     top: adjustedTop,
                     height: adjustedHeight,
+                    indentation: regularisedIndent,
                     characterWidth: fontPixelWidth,
                     indentBy: regularisedIndent / this._userSpacing,
                 }
