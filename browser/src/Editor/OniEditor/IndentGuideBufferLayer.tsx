@@ -38,7 +38,9 @@ interface IndentLinesProps {
     line: string
     indentBy: number
     indentSize: number
+    indentation: number
     characterWidth: number
+    bufferLineNumber: number
 }
 
 const Container = styled.div``
@@ -81,7 +83,36 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
         return "Indent Guide Lines"
     }
 
+    private _getWholeIndentLine(props: IndentLinesProps[]) {
+        return props.reduce(
+            (acc, { indentation, bufferLineNumber }, index, allPositions) => {
+                const currentGuidePosition = acc.guidePosition[indentation]
+                const next = allPositions[index + 1]
+                if (currentGuidePosition) {
+                    acc.guidePosition[indentation].end = bufferLineNumber
+                    if (
+                        next &&
+                        (indentation > next.indentation || indentation < next.indentation)
+                    ) {
+                        acc.wholeLines.push(acc.guidePosition)
+                        acc.guidePosition = {}
+                        return acc
+                    }
+                } else {
+                    acc.guidePosition[indentation] = { start: bufferLineNumber, end: null }
+                }
+                return acc
+            },
+            {
+                wholeLines: [],
+                guidePosition: {},
+            },
+        )
+    }
+
     private _getIndentLines = (guidePositions: IndentLinesProps[], options: ConfigOptions) => {
+        const lines = this._getWholeIndentLine(guidePositions)
+        console.log("line: ", lines)
         return flatten(
             guidePositions.map((props, idx) => {
                 // Create a line per indentation
@@ -231,7 +262,9 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
                     indentSize,
                     top: adjustedTop,
                     height: adjustedHeight,
+                    indentation: regularisedIndent,
                     characterWidth: fontPixelWidth,
+                    bufferLineNumber: topBufferLine + currenLineNumber,
                     indentBy: regularisedIndent / this._userSpacing,
                 }
 
