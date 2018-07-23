@@ -20,6 +20,7 @@ interface IProps {
     left: number
     top: number
     color?: string
+    activeGuideLine: boolean
 }
 
 interface ConfigOptions {
@@ -39,15 +40,21 @@ interface IndentLinesProps {
     indentBy: number
     indentSize: number
     characterWidth: number
+    isCursorLine: boolean
+    cursorPosition: {
+        pixelX: number
+        pixelY: number
+    }
 }
 
 const Container = styled.div``
 
 const IndentLine = withProps<IProps>(styled.span).attrs({
-    style: ({ height, left, top }: IProps) => ({
+    style: ({ height, left, top, activeGuideLine }: IProps) => ({
         height: pixel(height),
         left: pixel(left),
         top: pixel(top),
+        backgroundColor: activeGuideLine ? "red" : "inherit",
     }),
 })`
     border-left: 1px solid ${p => p.color || "rgba(100, 100, 100, 0.4)"};
@@ -81,10 +88,17 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
         return "Indent Guide Lines"
     }
 
+    private _getActiveIndent(indents: IndentLinesProps[]) {
+        const closestIndent = indents.find(
+            props => props.isCursorLine && props.cursorPosition.pixelX > props.left,
+        )
+        console.log("closestIndent: ", closestIndent)
+    }
+
     private _getIndentLines = (guidePositions: IndentLinesProps[], options: ConfigOptions) => {
-        return flatten(
+        const allIndentsPerLine = flatten(
             guidePositions.map((props, idx) => {
-                const indents: JSX.Element[] = []
+                const indents: IndentLinesProps[] = []
                 // Create a line per indentation
                 for (
                     let levelOfIndentation = 0;
@@ -94,23 +108,25 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
                     const lineProps = { ...props, levelOfIndentation }
                     const adjustedLeft = this._calculateLeftPosition(lineProps)
                     const shouldSkip = this._determineIfShouldSkip(lineProps, options)
-                    const key = `${props.line.trim()}-${idx}-${levelOfIndentation}`
-                    indents.push(
-                        !shouldSkip && (
-                            <IndentLine
-                                key={key}
-                                top={props.top}
-                                left={adjustedLeft}
-                                color={options.color}
-                                height={props.height}
-                                data-id="indent-line"
-                            />
-                        ),
-                    )
+                    if (!shouldSkip) {
+                        indents.push({ ...props, left: adjustedLeft })
+                    }
                 }
                 return indents
             }),
         )
+        this._getActiveIndent(allIndentsPerLine)
+        return allIndentsPerLine.map((indent, idx) => (
+            <IndentLine
+                key={`${indent.line.trim()}-${idx}`}
+                top={indent.top}
+                left={indent.left}
+                color={options.color}
+                height={indent.height}
+                data-id="indent-line"
+                activeGuideLine={false}
+            />
+        ))
     }
 
     private _determineIfShouldSkip(props: LinePropsWithLevels, options: ConfigOptions) {
@@ -187,7 +203,7 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
         const indentSize = this._userSpacing * fontPixelWidth
 
         const { allIndentations } = visibleLines.reduce(
-            (acc, line, currenLineNumber) => {
+            (acc, line, currentLineNumber) => {
                 const rawIndentation = detectIndent(line)
 
                 const regularisedIndent = this._regulariseIndentation(rawIndentation)
@@ -211,8 +227,16 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
 
                 const { pixelX: left, pixelY: top } = bufferLayerContext.screenToPixel({
                     screenX: startPosition.screenX,
-                    screenY: currenLineNumber,
+                    screenY: currentLineNumber,
                 })
+
+                const cursorLine = (bufferLayerContext as any).cursorLine
+                const cursorColumn = (bufferLayerContext as any).cursorColumn
+                const cursorPosition = bufferLayerContext.bufferToPixel({
+                    character: cursorColumn,
+                    line: cursorLine,
+                })
+                const isCursorLine = cursorLine + 1 === topBufferLine + currentLineNumber
 
                 const adjustedTop = top + acc.wrappedHeightAdjustment
 
@@ -238,6 +262,8 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
                     height: adjustedHeight,
                     characterWidth: fontPixelWidth,
                     indentBy: regularisedIndent / this._userSpacing,
+                    isCursorLine,
+                    cursorPosition,
                 }
 
                 acc.allIndentations.push(indent)
