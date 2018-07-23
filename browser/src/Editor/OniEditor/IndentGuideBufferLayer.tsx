@@ -29,6 +29,7 @@ interface IndentLinesProps {
     line: string
     indentBy: number
     characterWidth: number
+    indentation: number
 }
 
 const Container = styled.div``
@@ -72,26 +73,40 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
     }
 
     private _getLineFromPositions = (guidePositions: IndentLinesProps[]) => {
+        console.log("positions: ", guidePositions)
         const lines = guidePositions.reduce(
             (acc, position, index, positions) => {
+                const currentIndent = acc.data[position.indentation]
                 const next = positions[index + 1]
-                const previous = positions[index - 1]
-                if (!previous || (previous && previous.left !== position.left)) {
-                    acc.currentLine.top = position.top
+                // const previous = positions[index - 1]
+                if (currentIndent) {
+                    acc.data[position.indentation].end = index
+                    if (next && position.indentation < next.indentation) {
+                        acc.lines.push(acc.data)
+                        acc.data = { start: index, end: null }
+                        return acc
+                    }
+                    return acc
                 }
-                if (next && position.left === next.left) {
-                    acc.currentLine.left = position.left
-                    acc.currentLine.height += position.height
-                } else {
-                    acc.lines.push(acc.currentLine)
-                    acc.currentLine = { top: 0, left: 0, height: 0 }
-                }
+                acc.data[position.indentation] = { start: index, end: index }
                 return acc
+                // const next = positions[index + 1]
+                // const previous = positions[index - 1]
+                // if (!previous || (previous && previous.left !== position.left)) {
+                //     acc.currentLine.top = position.top
+                // }
+                // if (next && position.left === next.left) {
+                //     acc.currentLine.left = position.left
+                //     acc.currentLine.height += position.height
+                // } else {
+                //     acc.lines.push(acc.currentLine)
+                //     acc.currentLine = { top: 0, left: 0, height: 0 }
+                // }
             },
-            { lines: [], currentLine: { top: 0, left: 0, height: 0 } },
+            { lines: [], data: {} },
         )
         console.log("lines: ", lines)
-        return lines.lines
+        return [] as IndentLinesProps[]
     }
 
     private _getIndentLines = (guidePositions: IndentLinesProps[], color?: string) => {
@@ -212,6 +227,7 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
                 const indent = {
                     left,
                     line,
+                    indentation: regularisedIndent,
                     top: adjustedTop,
                     height: adjustedHeight,
                     characterWidth: fontPixelWidth,
