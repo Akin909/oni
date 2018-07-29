@@ -10,7 +10,11 @@
 import { IConfigurationValues } from "./../../Services/Configuration"
 import { IThemeColors } from "./../../Services/Themes"
 
-import { StatusBarAlignment } from "./ShellState"
+import { IStatusBarItem } from "./ShellState"
+
+export interface StatusBarItemPayload extends IStatusBarItem {
+    id: string
+}
 
 export interface ISetHasFocusAction {
     type: "SET_HAS_FOCUS"
@@ -47,12 +51,7 @@ export interface ISetColorsAction {
 
 export interface IStatusBarShowAction {
     type: "STATUSBAR_SHOW"
-    payload: {
-        id: string
-        contents: JSX.Element
-        alignment: StatusBarAlignment
-        priority: number
-    }
+    payload: StatusBarItemPayload
 }
 
 export interface IStatusBarHideAction {

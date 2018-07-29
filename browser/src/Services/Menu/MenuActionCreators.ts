@@ -1,9 +1,11 @@
 /**
  * MenuActionCreators.ts
  */
+import { Dispatch, Store } from "redux"
 
 import * as Shell from "./../../UI/Shell"
 import * as MenuActions from "./MenuActions"
+import { IMenus } from "./MenuState"
 
 // Selector
 const getSelectedItem = (contextMenuState: any) => {
@@ -40,7 +42,7 @@ export const showPopupMenu = (
     items?: any,
     filter?: string,
 ) => {
-    const state: any = Shell.store.getState()
+    const state = Shell.store.getState()
     const backgroundColor = state.colors["menu.background"]
     const foregroundColor = state.colors["menu.foreground"]
     const borderColor = state.colors["menu.border"] || backgroundColor
@@ -69,6 +71,10 @@ export const showPopupMenu = (
     }
 }
 
+type MenuState = IMenus<{}, {}>
+type GetState = Store<MenuState>["getState"]
+type MenuDispatch = Dispatch<MenuState>
+
 export const setMenuLoading = (id: string, isLoading: boolean) => ({
     type: "SET_MENU_LOADING",
     payload: {
@@ -92,7 +98,7 @@ export const setDetailedMenuItem = (item: any) => ({
     },
 })
 
-export const hidePopupMenu = () => (dispatch: any, getState: any) => {
+export const hidePopupMenu = () => (dispatch: MenuDispatch, getState: GetState) => {
     const state = getState()
 
     if (!state.menu) {
@@ -103,20 +109,19 @@ export const hidePopupMenu = () => (dispatch: any, getState: any) => {
         state.menu.onHide()
     }
 
-    dispatch({
-        type: "HIDE_MENU",
-    })
+    dispatch({ type: "HIDE_MENU" })
 }
 
-export const previousMenuItem = () => (dispatch: any, getState: any) => {
-    dispatch({
-        type: "PREVIOUS_MENU",
-    })
+export const previousMenuItem = () => (dispatch: MenuDispatch, getState: GetState) => {
+    dispatch({ type: "PREVIOUS_MENU" })
 
     notifySelectedItemChange(getState())
 }
 
-export const filterMenu = (filterString: string) => (dispatch: any, getState: any) => {
+export const filterMenu = (filterString: string) => (
+    dispatch: MenuDispatch,
+    getState: GetState,
+) => {
     const state = getState()
 
     if (!state.menu) {
@@ -137,10 +142,8 @@ export const filterMenu = (filterString: string) => (dispatch: any, getState: an
     notifySelectedItemChange(getState())
 }
 
-export const nextMenuItem = () => (dispatch: any, getState: any) => {
-    dispatch({
-        type: "NEXT_MENU",
-    })
+export const nextMenuItem = () => (dispatch: MenuDispatch, getState: GetState) => {
+    dispatch({ type: "NEXT_MENU" })
 
     notifySelectedItemChange(getState())
 }

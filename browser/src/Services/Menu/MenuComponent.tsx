@@ -2,7 +2,7 @@ import * as React from "react"
 import * as ReactDOM from "react-dom"
 import { connect, Provider } from "react-redux"
 
-import { AutoSizer, List } from "react-virtualized"
+import { AutoSizer, List, ListRowRenderer } from "react-virtualized"
 
 import * as Oni from "oni-api"
 
@@ -60,7 +60,7 @@ export class MenuView extends React.PureComponent<IMenuProps, {}> {
             return null
         }
 
-        const rowRenderer = (props: { key: string; index: number; style: React.CSSProperties }) => {
+        const rowRenderer: ListRowRenderer = props => {
             const item = this.props.items[props.index]
             return (
                 <div style={props.style} key={props.key}>

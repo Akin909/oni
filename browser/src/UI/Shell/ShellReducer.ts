@@ -90,7 +90,7 @@ export const overlaysReducer = (s: State.Overlays, a: Actions.SimpleAction) => {
 export const statusBarReducer = (s: State.StatusBar, a: Actions.SimpleAction) => {
     switch (a.type) {
         case "STATUSBAR_SHOW":
-            const existingItem = s[a.payload.id] || {}
+            const existingItem = s[a.payload.id] || ({} as Actions.StatusBarItemPayload)
             const newItem = {
                 ...existingItem,
                 ...a.payload,

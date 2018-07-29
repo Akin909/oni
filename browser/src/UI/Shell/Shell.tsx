@@ -28,7 +28,7 @@ import { createStore } from "./../../Redux"
 
 const defaultState = State.createDefaultState()
 
-export const store = createStore("Shell", reducer, defaultState, [thunk])
+export const store = createStore<State.IState>("Shell", reducer, defaultState, [thunk])
 
 export const Actions: typeof ActionCreators = bindActionCreators(
     ActionCreators as any,
@@ -49,7 +49,7 @@ export const activate = (): void => {
 }
 
 export const initializeColors = (colors: Colors): void => {
-    const setColors = () => Actions.setColors(colors.getColors() as any)
+    const setColors = () => Actions.setColors(colors.getColors())
 
     colors.onColorsChanged.subscribe(() => {
         setColors()

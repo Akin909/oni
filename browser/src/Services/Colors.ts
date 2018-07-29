@@ -12,11 +12,7 @@ import { Event, IDisposable, IEvent } from "oni-types"
 import { Configuration, IConfigurationValues } from "./Configuration"
 import * as PersistentSettings from "./Configuration/PersistentSettings"
 
-import { ThemeManager } from "./Themes"
-
-export interface ColorsDictionary {
-    [colorName: string]: string
-}
+import { IThemeColors, ThemeManager } from "./Themes"
 
 let _colors: Colors = null
 
@@ -35,7 +31,7 @@ export interface IColors extends OniApi.IColors {
 
 export class Colors implements OniApi.IColors, IDisposable {
     private _subscriptions: IDisposable[] = []
-    private _colors: ColorsDictionary = {}
+    private _colors = {} as IThemeColors
     private _onColorsChangedEvent: Event<void> = new Event<void>()
 
     public get onColorsChanged(): IEvent<void> {
@@ -63,7 +59,7 @@ export class Colors implements OniApi.IColors, IDisposable {
         this._updateColorsFromConfig()
     }
 
-    public getColors(): ColorsDictionary {
+    public getColors(): IThemeColors {
         return this._colors
     }
 
@@ -84,7 +80,7 @@ export class Colors implements OniApi.IColors, IDisposable {
         }
 
         const currentThemeColors = this._themeManager.getColors()
-        this._colors = {}
+        this._colors = {} as IThemeColors
 
         Object.keys(currentThemeColors).forEach(themeColor => {
             const configurationName = this._getConfigurationNameForColor(themeColor)

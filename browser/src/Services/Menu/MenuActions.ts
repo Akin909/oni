@@ -5,6 +5,7 @@
  */
 
 export interface IMenuOptions {
+    borderColor?: string
     foregroundColor?: string
     backgroundColor?: string
     highlightColor?: string
