@@ -12,8 +12,14 @@ import styled, { keyframes } from "styled-components"
 import * as Oni from "oni-api"
 
 const DefinitionAppearKeyFrames = keyframes`
-    from {opacity: 0; transform: translateY(2px);}
-    to {opacity: 0.4; transform: translateY(0px);}
+    from {
+        opacity: 0;
+        transform: translateY(2px);
+    }
+    to {
+        opacity: 0.4;
+        transform: translateY(0px);
+    }
 `
 
 const StyledDefinition = styled.div`

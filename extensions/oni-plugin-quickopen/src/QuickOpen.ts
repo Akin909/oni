@@ -1,8 +1,8 @@
 import { lstatSync } from "fs"
 
-import * as path from "path"
 import * as Oni from "oni-api"
 import { Event, IEvent } from "oni-types"
+import * as path from "path"
 
 import { getTypeFromMenuItem, QuickOpenItem, QuickOpenType } from "./QuickOpenItem"
 
@@ -14,9 +14,9 @@ interface QuickOpenResult {
 }
 
 interface IAsyncSearch {
+    onSearchResults: IEvent<QuickOpenResult>
     cancel(): void
     changeQueryText(newText): void
-    onSearchResults: IEvent<QuickOpenResult>
 }
 
 class NullSearch implements IAsyncSearch {
@@ -55,7 +55,7 @@ class BookmarkSearch implements IAsyncSearch {
         ]
     }
 
-    public cancel(): void {}
+    public cancel(): void {} // tslint:disable-line
 
     public changeQueryText(newText): void {
         this._onSearchResults.dispatch({
@@ -88,7 +88,7 @@ class BufferLinesSearch implements IAsyncSearch {
         )
     }
 
-    public cancel(): void {}
+    public cancel(): void {} // tslint:disable-line
 
     public changeQueryText(newText): void {
         this._onSearchResults.dispatch({
@@ -103,13 +103,24 @@ class BufferLinesSearch implements IAsyncSearch {
 }
 
 class FilePathSearch implements IAsyncSearch {
+    private static toQuickOpenItem(i: Oni.Search.ResultItem): QuickOpenItem {
+        return new QuickOpenItem(
+            path.basename(i.fileName),
+            path.dirname(i.fileName),
+            QuickOpenType.file,
+            i.fileName,
+            i.line,
+            i.column,
+        )
+    }
+
     private _activeQuery: Oni.Search.Query
     private _onSearchResults = new Event<QuickOpenResult>()
     private _cached = false
 
     constructor(private _oni: Oni.Plugin.Api) {}
 
-    public cancel(): void {}
+    public cancel(): void {} // tslint:disable-line
 
     public changeQueryText(newText): void {
         if (this._cached) {
@@ -135,20 +146,19 @@ class FilePathSearch implements IAsyncSearch {
     public get onSearchResults(): IEvent<QuickOpenResult> {
         return this._onSearchResults
     }
+}
 
+class FileContentSearch implements IAsyncSearch {
     private static toQuickOpenItem(i: Oni.Search.ResultItem): QuickOpenItem {
         return new QuickOpenItem(
+            i.text,
             path.basename(i.fileName),
-            path.dirname(i.fileName),
             QuickOpenType.file,
             i.fileName,
             i.line,
             i.column,
         )
     }
-}
-
-class FileContentSearch implements IAsyncSearch {
     private _activeQuery: Oni.Search.Query
     private _onSearchResults = new Event<QuickOpenResult>()
 
@@ -189,17 +199,6 @@ class FileContentSearch implements IAsyncSearch {
 
     public get onSearchResults(): IEvent<QuickOpenResult> {
         return this._onSearchResults
-    }
-
-    private static toQuickOpenItem(i: Oni.Search.ResultItem): QuickOpenItem {
-        return new QuickOpenItem(
-            i.text,
-            path.basename(i.fileName),
-            QuickOpenType.file,
-            i.fileName,
-            i.line,
-            i.column,
-        )
     }
 }
 
@@ -251,10 +250,10 @@ export class QuickOpen {
 
         const { activeWorkspace } = this._oni.workspace
         const basePath = activeWorkspace ? [activeWorkspace] : []
-        const pathArgs = basePath.concat([selectedItem.metadata["path"]])
+        const pathArgs = basePath.concat([selectedItem.metadata.path]) // tslint:disable-line
         const fullPath = path.join(...pathArgs).replace("~", getHome())
 
-        this._seenItems.add(selectedItem.metadata["hash"])
+        this._seenItems.add(selectedItem.metadata.hash) // tslint:disable-line
 
         const qoType = getTypeFromMenuItem(selectedItem)
         switch (qoType) {
@@ -271,8 +270,8 @@ export class QuickOpen {
             case QuickOpenType.bufferLine: {
                 if (mode !== Oni.FileOpenMode.Edit) {
                     const openOptions = { openMode: mode }
-                    const path = this._oni.editors.activeEditor.activeBuffer.filePath
-                    await this._oni.editors.openFile(path, openOptions)
+                    const { filePath } = this._oni.editors.activeEditor.activeBuffer
+                    await this._oni.editors.openFile(filePath, openOptions)
                 }
                 await this._oni.editors.activeEditor.neovim.command(`${selectedItem.label}`)
                 break
@@ -292,8 +291,8 @@ export class QuickOpen {
             }
 
             case QuickOpenType.file: {
-                const line = parseInt(selectedItem.metadata["line"], 10)
-                const column = parseInt(selectedItem.metadata["column"], 10)
+                const line = parseInt(selectedItem.metadata.line, 10)
+                const column = parseInt(selectedItem.metadata.column, 10)
 
                 const offsetedLine = line > 0 ? line - 1 : 0
                 const offsetedColumn = column > 0 ? column - 1 : 0
