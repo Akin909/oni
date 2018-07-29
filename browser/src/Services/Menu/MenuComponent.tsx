@@ -8,7 +8,6 @@ import * as Oni from "oni-api"
 
 import { styled } from "../../UI/components/common"
 import { HighlightTextByIndex } from "./../../UI/components/HighlightText"
-// import { Visible } from "./../../UI/components/Visible"
 import { Icon, IconSize } from "./../../UI/Icon"
 
 import { focusManager } from "./../FocusManager"
@@ -50,13 +49,13 @@ export class MenuView extends React.PureComponent<IMenuProps, {}> {
     private _inputElement: HTMLInputElement = null
     private _popupBody: Element = null
 
-    public componentWillUpdate(newProps: Readonly<IMenuProps>): void {
+    public componentWillUpdate(newProps: Readonly<IMenuProps>) {
         if (newProps.visible !== this.props.visible && !newProps.visible && this._inputElement) {
             focusManager.popFocus(this._inputElement)
         }
     }
 
-    public render(): null | JSX.Element {
+    public render() {
         if (!this.props.visible) {
             return null
         }
@@ -66,7 +65,7 @@ export class MenuView extends React.PureComponent<IMenuProps, {}> {
             return (
                 <div style={props.style} key={props.key}>
                     <MenuItem
-                        {...item as any}
+                        {...item}
                         key={props.key}
                         filterText={this.props.filterText}
                         isSelected={props.index === this.props.selectedIndex}
@@ -120,29 +119,28 @@ export class MenuView extends React.PureComponent<IMenuProps, {}> {
         )
     }
 
-    private _onChange(evt: React.FormEvent<HTMLInputElement>) {
-        const target: any = evt.target
-        this.props.onChangeFilterText(target.value)
+    private _onChange: React.FormEventHandler<HTMLInputElement> = evt => {
+        const { value } = evt.currentTarget
+        this.props.onChangeFilterText(value)
     }
 
     /**
      * Hide the popup if a click event was registered outside of it
      */
-    private handleHide = (event: any) => {
+    private handleHide: React.MouseEventHandler<HTMLElement> = event => {
         const node = ReactDOM.findDOMNode(this._popupBody)
-        if (!node.contains(event.target as Node)) {
+        if (!node.contains(event.currentTarget)) {
             this.props.onHide()
         }
     }
 }
 
-const EmptyArray: any[] = []
 const noop = () => {} // tslint:disable-line
 const NullProps: any = {
     visible: false,
     selectedIndex: 0,
     filterText: "",
-    items: EmptyArray,
+    items: [],
     onSelect: noop,
     isLoading: true,
     rowHeight: 0,
@@ -190,12 +188,12 @@ export interface IMenuItemProps {
     filterText: string
     label: string
     labelHighlights: number[]
-    detail: string
+    detail?: string
     detailHighlights: number[]
-    pinned: boolean
+    pinned?: boolean
     additionalComponent?: JSX.Element
     onClick: () => void
-    height: number
+    height?: number
 }
 
 export interface IMenuItemWrapperProps {
@@ -257,9 +255,9 @@ export class MenuItem extends React.PureComponent<IMenuItemProps, {}> {
         )
     }
 
-    private getIcon(): any {
+    private getIcon() {
         if (!this.props.icon) {
-            return <Icon name={"default"} />
+            return <Icon name="default" />
         }
         if (typeof this.props.icon === "string") {
             return <Icon name={this.props.icon} />

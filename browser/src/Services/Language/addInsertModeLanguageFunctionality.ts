@@ -35,7 +35,7 @@ export const addInsertModeLanguageFunctionality = (
         const editor = editorManager.activeEditor
         const buffer = editor.activeBuffer
 
-        const changedLines: string[] = await buffer.getLines(cursorPos.line, cursorPos.line + 1)
+        const changedLines = await buffer.getLines(cursorPos.line, cursorPos.line + 1)
         const changedLine = changedLines[0]
         return {
             filePath: buffer.filePath,
