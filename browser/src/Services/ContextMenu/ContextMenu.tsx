@@ -155,6 +155,12 @@ export class ContextMenu {
             highlightColor,
         }
 
+        const sortByPinned = (menuItems: any[]) =>
+            Array.isArray(menuItems)
+                ? [...menuItems].sort(item => (item.pinned ? -1 : 1))
+                : menuItems
+        const sortedItems = sortByPinned(items)
+
         this._actions.showPopupMenu(
             this._id,
             {
@@ -165,8 +171,8 @@ export class ContextMenu {
                 onHide: () => this._onHidden(),
                 onFilterTextChanged: (newText: string) =>
                     this._onFilterTextChanged.dispatch(newText),
-            } as any,
-            items,
+            },
+            sortedItems,
             filter,
         )
 
