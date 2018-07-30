@@ -241,6 +241,7 @@ export function createWindow(
     currentWindow.on("close", () => {
         Log.info("close event...")
         storeWindowState(currentWindow)
+
         Log.info("...close event completed")
     })
 
@@ -267,6 +268,13 @@ export function createWindow(
     return currentWindow
 }
 
+app.on("will-quit", () => {
+    for (const window of windows) {
+        Log.info("Sending will quit event before window closes")
+        window.webContents.send("oni-quit")
+    }
+})
+
 app.on("open-file", (event, filePath) => {
     event.preventDefault()
     Log.info(`filePath to open: ${filePath}`)
@@ -290,7 +298,7 @@ app.on("window-all-closed", () => {
     Log.info("window-all-closed event")
     // On OS X it is common for applications and their menu bar
     // to stay active until the user quits explicitly with Cmd + Q
-    if (process.platform !== "darwin" || isAutomation) {
+    if (isAutomation) {
         Log.info("quitting app")
         app.quit()
     }

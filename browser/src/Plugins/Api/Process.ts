@@ -3,6 +3,7 @@ import * as ChildProcess from "child_process"
 import * as Oni from "oni-api"
 import * as Log from "oni-core-logging"
 
+import { ipcRenderer } from "electron"
 import * as Platform from "./../../Platform"
 import { configuration } from "./../../Services/Configuration"
 
@@ -27,12 +28,18 @@ export class ShellEnvironmentFetcher implements IShellEnvironmentFetcher {
 }
 
 export class Process implements Oni.Process {
-    public _spawnedProcessIds: number[] = []
+    public _spawnedProcesses: ChildProcess.ChildProcess[] = []
     private _env: NodeJS.ProcessEnv
 
     constructor(
         private _shellEnvironmentFetcher: IShellEnvironmentFetcher = new ShellEnvironmentFetcher(),
-    ) {}
+    ) {
+        ipcRenderer.on("oni-quit", (_evt: any) => {
+            for (const process of this._spawnedProcesses) {
+                process.kill()
+            }
+        })
+    }
 
     public getPathSeparator = () => {
         return Platform.isWindows() ? ";" : ":"
@@ -67,15 +74,15 @@ export class Process implements Oni.Process {
         const execString = execOptions.map(s => `"${s}"`).join(" ")
 
         const proc = ChildProcess.exec(execString, spawnOptions, callback)
-        this._spawnedProcessIds.push(proc.pid)
+        this._spawnedProcesses.push(proc)
         return proc
     }
 
     /**
      * Get the set of process IDs that were spawned by Oni
      */
-    public getPIDs = (): number[] => {
-        return [...this._spawnedProcessIds]
+    public getPIDs = (): ChildProcess.ChildProcess[] => {
+        return [...this._spawnedProcesses]
     }
 
     /**
@@ -99,7 +106,7 @@ export class Process implements Oni.Process {
         const allArgs = [scriptPath].concat(args)
 
         const proc = ChildProcess.spawn(process.execPath, allArgs, spawnOptions)
-        this._spawnedProcessIds.push(proc.pid)
+        this._spawnedProcesses.push(proc)
         return proc
     }
 
@@ -114,7 +121,7 @@ export class Process implements Oni.Process {
         const spawnOptions = await this.mergeSpawnOptions(options)
 
         const proc = ChildProcess.spawn(startCommand, args, spawnOptions)
-        this._spawnedProcessIds.push(proc.pid)
+        this._spawnedProcesses.push(proc)
         proc.on("error", (err: Error) => {
             Log.error(err)
         })
