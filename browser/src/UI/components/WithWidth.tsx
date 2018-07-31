@@ -14,8 +14,8 @@ export default function withWidth(WrappedComponent: any) {
     return class extends React.Component<Props, State> {
         public static displayName = `WithWidth(${WrappedComponent.displayName ||
             WrappedComponent.name})`
-        private observer: any
-        private _node: Element
+        public observer: any
+        public _node: Element
         constructor(props: Props) {
             super(props)
 
@@ -41,13 +41,13 @@ export default function withWidth(WrappedComponent: any) {
             )
         }
 
-        private measure = ([entry]: any) => {
+        public measure = ([entry]: any) => {
             if (entry) {
                 this.setState({ width: entry.contentRect.width })
             }
         }
 
-        private _handleRef = (node: Element) => {
+        public _handleRef = (node: Element) => {
             if (this.observer) {
                 if (node) {
                     this.observer.observe(node)

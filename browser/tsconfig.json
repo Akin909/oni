@@ -1,5 +1,7 @@
 {
     "compilerOptions": {
+        "composite": true,
+        "declaration": true,
         "allowUnreachableCode": false,
         "allowUnusedLabels": false,
         "experimentalDecorators": true,
@@ -26,6 +28,15 @@
         "sourceMap": true,
         "types": ["mocha", "webgl2"]
     },
-    "include": ["../@types/**/*.d.ts", "src/**/*.ts", "test/**/*.ts"],
+    "references": [
+        { "path": "../cli" },
+        { "path": "../main" },
+        { "path": "../webview_preload" },
+        { "path": "../vim/core/oni-plugin-git" },
+        { "path": "../vim/core/oni-plugin-typescript" },
+        { "path": "../extensions/oni-plugin-quickopen" },
+        { "path": "../extensions/oni-plugin-markdown-preview" }
+    ],
+    "include": ["../@types/**/*.d.ts", "src/**/*.ts", "src/**/*.tsx", "test/**/*.ts"],
     "exclude": ["node_modules"]
 }

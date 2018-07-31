@@ -146,7 +146,7 @@ const toArrayBuffer = async (blob: Blob): Promise<ArrayBuffer> => {
         const fileReader = new FileReader()
         fileReader.onload = function() {
             const arrayBuffer = this.result
-            resolve(arrayBuffer)
+            resolve(arrayBuffer as any) // FIXME: compiler complains that array Buffer may be a string
         }
         fileReader.readAsArrayBuffer(blob)
     })
