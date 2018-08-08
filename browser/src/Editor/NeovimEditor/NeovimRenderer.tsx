@@ -8,6 +8,7 @@ import * as React from "react"
 
 import { IScreen, NeovimInstance } from "./../../neovim"
 import { INeovimRenderer } from "./../../Renderer"
+import { StackLayer } from "./../../UI/components/common"
 
 export interface INeovimRendererProps {
     neovimInstance: NeovimInstance
@@ -53,7 +54,7 @@ export class NeovimRenderer extends React.PureComponent<INeovimRendererProps, {}
     }
 
     public render(): JSX.Element {
-        return <div ref={elem => (this._element = elem)} className="stack layer" />
+        return <StackLayer innerRef={elem => (this._element = elem)} />
     }
 
     private _onResize(): void {

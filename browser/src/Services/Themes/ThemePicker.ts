@@ -28,23 +28,32 @@ const chooseTheme = async (
     themeMenu.show()
     themeMenu.setItems(items)
 
-    let wasSelected = false
+    // let wasSelected = false
 
-    themeMenu.onItemSelected.subscribe(() => (wasSelected = true))
+    themeMenu.onItemSelected.subscribe(() => {
+        // console.log("wasSelected: ", wasSelected)
+        // wasSelected = true
+        const { selectedItem } = themeMenu
+        console.log("selectedItem: ", selectedItem)
+        themeManager.setTheme(selectedItem.label)
+    })
 
     themeMenu.onHide.subscribe(() => {
-        if (!wasSelected) {
-            themeManager.setTheme(currentTheme)
-        }
+        console.log("ON HIDE")
+        // if (!wasSelected) {
+        themeManager.setTheme(currentTheme)
+        // }
     })
 
     themeMenu.onSelectedItemChanged.subscribe(newOption => {
-        if (newOption) {
-            configuration.setValues({ "ui.colorscheme": newOption.label })
-            themeManager.setTheme(newOption.label)
-        } else {
-            themeManager.setTheme(currentTheme)
-        }
+        console.log("newOption: ", newOption)
+        // if (newOption) {
+        configuration.setValues({ "ui.colorscheme": newOption.label })
+        // themeManager.setTheme(newOption.label)
+        // }
+        // } else {
+        // themeManager.setTheme(currentTheme)
+        // }
     })
 }
 
