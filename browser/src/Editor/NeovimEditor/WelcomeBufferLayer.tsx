@@ -468,13 +468,16 @@ export class WelcomeView extends React.PureComponent<WelcomeViewProps, WelcomeVi
         const nextPosition = currentIndex + vertical
         const numberOfItems = this.props.ids.length
 
+        const section = this.getCurrentSection(nextPosition, sections, numberOfItems, horizontal)
+        console.log("section: ", section)
+
         // TODO: this currently handles *TWO* sections if more sections are to be added will need
         // to rethink how to allow navigation across multiple sections
         switch (true) {
             case horizontal === 1:
-                return sections[0]
             case horizontal === -1:
-                return 0
+                console.log("sections[section]: ", sections[section])
+                return sections[section] + 1
             case nextPosition < 0:
                 return numberOfItems - 1
             case nextPosition === numberOfItems:
@@ -482,6 +485,36 @@ export class WelcomeView extends React.PureComponent<WelcomeViewProps, WelcomeVi
             default:
                 return nextPosition
         }
+    }
+
+    public getCurrentSection(
+        nextPosition: number,
+        sections: number[],
+        total: number,
+        horizontal: number = 0,
+    ) {
+        const { section } = sections.reduce(
+            (acc, sectionSize, index, array) => {
+                if (nextPosition + 1 > total) {
+                    acc.sum = sections[0]
+                    acc.section = 0
+                    return acc
+                }
+                if (nextPosition + 1 > acc.sum) {
+                    const nextSectionSize = array[index + 1]
+                    acc.sum += nextSectionSize
+                    acc.section = index + 1
+                    return acc
+                }
+                if (nextPosition < 0) {
+                    acc.sum += total
+                    acc.section = sections.length - 1
+                }
+                return acc
+            },
+            { sum: sections[0], section: 0 },
+        )
+        return section && section >= sections.length - 1 && horizontal ? 0 : section + horizontal
     }
 
     public componentDidUpdate() {
