@@ -70,6 +70,7 @@ export interface VersionControlProvider {
     getLocalBranches(): Promise<BranchSummary | void>
     changeBranch(branch: string): Promise<void>
     stageFile(file: string): Promise<void>
+    cloneRepo(repo: string, localPath: string): Promise<string>
     unstage(files: string[]): Promise<void>
     uncommit(sha?: string): Promise<void>
     commitFiles(message: string[], files?: string[]): Promise<Commits>

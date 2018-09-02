@@ -137,6 +137,12 @@ export class GitVersionControlProvider implements VCS.VersionControlProvider {
         }
     }
 
+    public cloneRepo = async (repo: string, localPath: string) => {
+        return this._git(this._projectRoot)
+            .silent(true)
+            .clone(repo, localPath)
+    }
+
     public unstage = async (files: string[]) => {
         const flags = ["HEAD", ...files]
         try {

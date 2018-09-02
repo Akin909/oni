@@ -77,7 +77,7 @@ export class VersionControlManager {
         this._vcs = null
     }
 
-    public async handleProviderStatus(newProvider: VersionControlProvider): Promise<void> {
+    private async handleProviderStatus(newProvider: VersionControlProvider): Promise<void> {
         const isSameProvider = this._vcsProvider && newProvider && this._vcs === newProvider.name
         const noCompatibleProvider = this._vcsProvider && !newProvider
         const newReplacementProvider = Boolean(this._vcsProvider && newProvider)
