@@ -184,8 +184,8 @@ export const getColorsFromBackgroundAndForeground = (background: string, foregro
         "sidebar.active.background": background,
         "sidebar.selection.border": borderColor,
 
-        "tabs.background": background,
-        "tabs.foreground": foreground,
+        "tabs.activeTabForeground": foreground,
+        "tabs.activeTabBackground": background,
         "tabs.inactiveTabForeground": foreground,
         "tabs.inactiveTabBackground": foreground,
 
@@ -273,8 +273,10 @@ export const DefaultThemeColors: IThemeColors = {
     "sidebar.active.background": ColorBlack,
     "sidebar.selection.border": ColorWhite,
 
-    "tabs.background": ColorBlack,
-    "tabs.foreground": ColorWhite,
+    "tabs.activeTabForeground": ColorWhite,
+    "tabs.activeTabBackground": ColorBlack,
+    "tabs.inactiveTabForeground": ColorWhite,
+    "tabs.inactiveTabBackground": ColorBlack,
 
     "fileExplorer.background": StatusBarBackground,
     "fileExplorer.foreground": StatusBarForeground,

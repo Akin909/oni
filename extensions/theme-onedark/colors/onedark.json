@@ -13,6 +13,8 @@
 
         "tabs.background": "#282C34",
         "tabs.foreground": "#ABB3BF",
+        "tabs.inactiveTabsForeground": "red",
+        "tabs.inactiveTabsBackground": "blue",
 
         "toolTip.background": "#282C34",
         "toolTip.foreground": "#ABB2BF",
