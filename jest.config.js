@@ -3,6 +3,7 @@ module.exports = {
     verbose: true,
     collectCoverage: true,
     coverageDirectory: "<rootDir>/coverage/jest/",
+    setupTestFrameworkScriptFile: "./jest-setup-framework.js",
     setupFiles: ["<rootDir>/ui-tests/jestsetup.ts"],
     moduleNameMapper: {
         electron: "<rootDir>/ui-tests/mocks/electronMock.ts",
