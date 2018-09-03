@@ -40,7 +40,21 @@ export class NeovimTokenColorSynchronizer {
             const highlightName = this._getOrCreateHighlightGroup(tokenColor)
             const highlightFromScope = this._convertTokenStyleToHighlightInfo(tokenColor)
 
+            console.group("Highlight INFO")
+            console.log(
+                "this._tokenScopeSelectorToHighlightName: ",
+                this._tokenScopeSelectorToHighlightName,
+            )
+
+            console.log(
+                "this._highlightNameToHighlightValue, : ",
+                this._highlightNameToHighlightValue,
+            )
+
             const currentHighlight = this._highlightNameToHighlightValue[highlightName]
+            console.log("currentHightlight: ", currentHighlight)
+            console.log("highlightFromScope: ", highlightFromScope)
+            console.groupEnd()
 
             if (currentHighlight === highlightFromScope) {
                 return null
@@ -83,6 +97,8 @@ export class NeovimTokenColorSynchronizer {
         const name = this._getOrCreateHighlightGroup(tokenColor)
         const foregroundColor = Color(tokenColor.settings.foreground).hex()
         const backgroundColor = Color(tokenColor.settings.background).hex()
+        console.log("tokenColor: ", tokenColor)
+        console.log("foregroundColor: ", foregroundColor)
         const gui = getGuiStringFromTokenColor(tokenColor)
         return `:hi ${name} guifg=${foregroundColor} guibg=${backgroundColor} ${gui}`
     }

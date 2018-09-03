@@ -69,6 +69,7 @@ export class SyntaxHighlightReconciler {
                 const line = Selectors.getLineFromBuffer(currentHighlightState, lineNumber)
 
                 const highlights = this._mapTokensToHighlights(line.tokens)
+                console.log("highlights: ", highlights)
                 return {
                     line: parseInt(li, 10),
                     highlights,
@@ -112,12 +113,14 @@ export class SyntaxHighlightReconciler {
     }
 
     private _mapTokensToHighlights(tokens: ISyntaxHighlightTokenInfo[]): HighlightInfo[] {
+        console.log("tokens: ", tokens)
         const mapTokenToHighlight = (token: ISyntaxHighlightTokenInfo) => ({
             tokenColor: this._getHighlightGroupFromScope(token.scopes),
             range: token.range,
         })
 
-        return tokens.map(mapTokenToHighlight).filter(t => !!t.tokenColor)
+        const highlights = tokens.map(mapTokenToHighlight).filter(t => !!t.tokenColor)
+        return highlights
     }
 
     private _getHighlightGroupFromScope(scopes: string[]): TokenColor {
