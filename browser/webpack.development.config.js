@@ -50,6 +50,7 @@ module.exports = {
                 use: ["style-loader", "css-loader"],
                 exclude: /node_modules/,
             },
+            { test: /\.worker\.ts$/, loader: "worker-loader" },
             {
                 test: /\.tsx?$/,
                 use: {
