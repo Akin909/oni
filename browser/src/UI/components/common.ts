@@ -31,14 +31,6 @@ export interface ContainerProps {
     alignment?: FlexDirection
 }
 
-export const Fixed = styled.div`
-    flex: 0 0 auto;
-`
-
-export const Full = styled.div`
-    flex: 1 1 auto;
-`
-
 export const Container = withProps<ContainerProps>(styled.div)`
     display: flex;
     flex-direction: ${p => (p.direction === "vertical" ? "column" : "row")};
@@ -67,6 +59,41 @@ export const scrollbarStyles = css`
         }`};
     `
 
+interface IStyledDiv {
+    extension?: Css
+    zIndex?: number
+}
+
+export const Fixed = styled<IStyledDiv, "div">("div")`
+    flex: 0 0 auto;
+    ${({ zIndex }) => (zIndex ? `z-index: ${zIndex}` : "")};
+    ${p => p.extension};
+`
+
+export const Full = styled<IStyledDiv, "div">("div")`
+    flex: 1 1 auto;
+    ${p => p.extension};
+`
+
+export const vertical = css`
+    display: flex;
+    flex-direction: column;
+`
+export const horizontal = css`
+    display: flex;
+    flex-direction: row;
+`
+
+export const center = css`
+    display: flex;
+    justify-content: center;
+    align-items: center;
+`
+
+export const relative = css`
+    position: relative;
+`
+
 export const Bold = styled.span`
     font-weight: bold;
 `
@@ -74,9 +101,7 @@ export const Bold = styled.span`
 export const Center = styled.div`
     width: 100%;
     height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    ${center};
 `
 
 export const stack = css`
@@ -96,7 +121,7 @@ export const layer = css`
 export const StackLayer = styled<{ zIndex?: number | string }, "div">("div")`
     ${stack};
     ${layer};
-    ${p => p.zIndex && `z-index: ${p.zIndex}`};
+    ${({ zIndex }) => (zIndex ? `z-index: ${zIndex}` : "")};
 `
 
 type GetBorder = (
@@ -146,6 +171,10 @@ const lighten = (c: string, deg = 0.25) =>
 
 const boxShadow = css`
     box-shadow: 0 4px 8px 2px rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+`
+
+export const subtleBoxShadow = css`
+    box-shadow: 1px 2px 2px rgba(0, 0, 0, 0.1);
 `
 
 const boxShadowUp = css`

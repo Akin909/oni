@@ -17,7 +17,7 @@ import { Sneakable } from "./../../UI/components/Sneakable"
 import { Icon } from "./../../UI/Icon"
 import styled, {
     boxShadowUp,
-    boxShadowUpInset,
+    // boxShadowUpInset,
     css,
     enableMouse,
     IThemeColors,
@@ -25,6 +25,7 @@ import styled, {
     layer,
     scrollbarStyles,
     themeGet,
+    subtleBoxShadow,
 } from "./../components/common"
 
 import { FileIcon } from "./../../Services/FileIcon"
@@ -54,16 +55,93 @@ interface ITabsWrapperProps {
     shouldWrap: boolean
 }
 
-const TabsWrapper = styled<ITabsWrapperProps, "div">("div")`
-    ${enableMouse};
-    ${layer};
+type TabStyledProps = ITabWrapperProps & { theme: IThemeColors }
+
+const tabEntranceKeyFrames = keyframes`
+0% {
+    transform: translateY(-3px) rotateX(-20deg);
+}
+100% {
+    transform: translateY(0px) rotateX(0deg);
+}
+`
+
+const highlight = (props: TabStyledProps) =>
+    props.shouldShowHighlight &&
+    `border-top: 2px solid ${getHighlightColor(props.theme, props.mode)}`
+
+const activeTabStyles = css`
+    ${highlight};
+    ${boxShadowUp};
+    opacity: 1;
+    background-color: ${themeGet("tabs.active.background", "tabs.background")};
+    color: ${themeGet("tabs.active.foreground", "tabs.foreground")};
+`
+
+const inactiveTabStyles = css`
+    background-color: ${themeGet("tabs.background")};
+    color: ${themeGet("tabs.foreground")};
+    opacity: 0.6;
+
+    &:hover {
+        opacity: 0.9;
+    }
+`
+
+const TabWrapper = styled<ITabWrapperProps, "div">("div")`
     display: flex;
     flex-direction: row;
-    ${props => props.shouldWrap && "flex-wrap: wrap"};
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex: 0 0 auto;
+    max-width: ${props => props.maxWidth};
+    height: ${props => props.height};
+    transition: opacity 0.25s;
+    overflow: hidden;
+    user-select: none;
+    box-shadow: 1px -1px 2px rgba(0, 0, 0, 0.5);
+    border-right: 0.5px solid ${themeGet("tabs.foreground")};
+    animation: ${tabEntranceKeyFrames} 0.1s ease-in forwards;
+    ${props => (props.isSelected ? activeTabStyles : inactiveTabStyles)};
+`
+
+const tabIconAppearKeyframes = keyframes`
+0% {
+    transform: scale(0.5);
+}
+50% {
+    transform: scale(1.25);
+}
+100% {
+    transform: scale(1);
+}
+`
+
+const tabIconAppearAnimation = css`
+    animation-name: ${tabIconAppearKeyframes};
+    animation-duration: 0.6s;
+    animation-timing-function: ease-in;
+    animation-fill-mode: forwards;
+    opacity: 1;
+`
+
+const tabHover = css`
+    ${TabWrapper}:hover & {
+        ${tabIconAppearAnimation};
+    }
+`
+
+const TabsWrapper = styled<ITabsWrapperProps, "div">("div")`
+    ${layer};
+    ${enableMouse};
+    ${subtleBoxShadow};
+    display: flex;
+    flex-direction: row;
+    ${props => (props.shouldWrap ? "flex-wrap: wrap" : "")};
     align-items: flex-end;
     width: 100%;
     overflow-x: hidden;
-    border-bottom: 4px solid ${themeGet("tabs.background")};
     font-family: ${props => props.fontFamily};
     font-size: ${props => props.fontSize};
     transform: translateY(-3px);
@@ -71,6 +149,10 @@ const TabsWrapper = styled<ITabsWrapperProps, "div">("div")`
 
     .loaded & {
         transform: translateY(0px);
+    }
+
+    > ${TabWrapper}:last-child {
+        border-right: none;
     }
 
     &:hover {
@@ -175,15 +257,6 @@ const DirtyMarker = styled<{ userColor?: string }, "div">("div")`
     background-color: ${props => props.userColor || props.theme.foreground};
 `
 
-const tabEntranceKeyFrames = keyframes`
-    0% {
-        transform: translateY(-3px) rotateX(-20deg);
-    }
-    100% {
-        transform: translateY(0px) rotateX(0deg);
-    }
-`
-
 interface ITabWrapperProps {
     isSelected: boolean
     isDirty: boolean
@@ -192,72 +265,6 @@ interface ITabWrapperProps {
     mode: string
     shouldShowHighlight: boolean
 }
-
-type TabStyledProps = ITabWrapperProps & { theme: IThemeColors }
-
-const highlight = (props: TabStyledProps) =>
-    props.shouldShowHighlight &&
-    `border-top: 2px solid ${getHighlightColor(props.theme, props.mode)}`
-
-const active = css`
-    ${highlight};
-    ${boxShadowUp};
-    opacity: 1;
-`
-
-const inactive = css`
-    ${boxShadowUpInset};
-    opacity: 0.6;
-
-    &:hover {
-        opacity: 0.9;
-    }
-`
-
-const TabWrapper = styled<ITabWrapperProps, "div">("div")`
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    flex: 0 0 auto;
-    max-width: ${props => props.maxWidth};
-    height: ${props => props.height};
-    transition: opacity 0.25s;
-    overflow: hidden;
-    user-select: none;
-    animation: ${tabEntranceKeyFrames} 0.1s ease-in forwards;
-    ${props => (props.isSelected ? active : inactive)};
-
-    background-color: ${themeGet("tabs.active.background", "tabs.background", "isSelected")};
-    color: ${themeGet("tabs.active.foreground", "tabs.foreground", "isSelected")};
-`
-
-const tabIconAppearKeyframes = keyframes`
-    0% {
-        transform: scale(0.5);
-    }
-    50% {
-        transform: scale(1.25);
-    }
-    100% {
-        transform: scale(1);
-    }
-`
-
-const tabIconAppearAnimation = css`
-    animation-name: ${tabIconAppearKeyframes};
-    animation-duration: 0.6s;
-    animation-timing-function: ease-in;
-    animation-fill-mode: forwards;
-    opacity: 1;
-`
-
-const tabHover = css`
-    ${TabWrapper}:hover & {
-        ${tabIconAppearAnimation};
-    }
-`
 
 interface IIconContainerProps {
     isVisibleByDefault: boolean

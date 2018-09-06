@@ -11,7 +11,7 @@ export default async () => {
             REACT_DEVELOPER_TOOLS,
             REDUX_DEVTOOLS,
             default: installExtension,
-        } = require("electron-devtools-installer")
+        } = await import("electron-devtools-installer")
         try {
             const reduxExt = await installExtension(REDUX_DEVTOOLS)
             Log.info(`Added extension: ${reduxExt}`)

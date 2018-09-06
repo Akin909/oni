@@ -20,7 +20,7 @@ import { InstallHelp } from "./../../UI/components/InstallHelp"
 import { TabsContainer } from "./../../UI/components/Tabs"
 import { ToolTips } from "./../../UI/components/ToolTip"
 
-import { StackLayer } from "../../UI/components/common"
+import { StackLayer, Fixed, relative } from "../../UI/components/common"
 import { setViewport } from "./../NeovimEditor/NeovimEditorActions"
 import { NeovimBufferLayers } from "./NeovimBufferLayersView"
 import { NeovimEditorLoadingOverlay } from "./NeovimEditorLoadingOverlay"
@@ -71,14 +71,14 @@ class NeovimSurface extends React.Component<INeovimSurfaceProps> {
             <FileDropHandler handleFiles={this.props.onFileDrop}>
                 {({ setRef }) => (
                     <div className="container vertical full" ref={setRef}>
-                        <div className="container fixed">
+                        <Fixed extension={relative} zIndex={2}>
                             <TabsContainer
                                 onBufferSelect={this.props.onBufferSelect}
                                 onBufferClose={this.props.onBufferClose}
                                 onTabClose={this.props.onTabClose}
                                 onTabSelect={this.props.onTabSelect}
                             />
-                        </div>
+                        </Fixed>
                         <div className="container full">
                             <div className="stack" ref={(e: HTMLDivElement) => (this._editor = e)}>
                                 <NeovimRenderer
