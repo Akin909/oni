@@ -28,11 +28,15 @@ export const applyDefaultKeyBindings = (oni: Oni.Plugin.Api, config: Configurati
         editors.activeEditor.mode === "insert" || editors.activeEditor.mode === "cmdline_normal"
 
     const oniWithSidebar = oni as Oni.Plugin.Api & ISidebar
-    const isExplorerActive = () =>
-        oniWithSidebar.sidebar.activeEntryId === "oni.sidebar.explorer" &&
+    const isSidebarPaneOpen = (paneId: string) =>
+        oniWithSidebar.sidebar.activeEntryId === paneId &&
         oniWithSidebar.sidebar.isFocused &&
         !isInsertOrCommandMode() &&
         !isMenuOpen()
+
+    const isExplorerActive = () => isSidebarPaneOpen("oni.sidebar.explorer")
+    const areSessionsActive = () => isSidebarPaneOpen("oni.sidebar.sessions")
+    const isVCSActive = () => isSidebarPaneOpen("oni.sidebar.vcs")
 
     const isMenuOpen = () => menu.isMenuOpen()
 
@@ -47,6 +51,7 @@ export const applyDefaultKeyBindings = (oni: Oni.Plugin.Api, config: Configurati
         input.bind("<m-h>", "oni.editor.hide")
         input.bind("<c-tab>", "buffer.toggle")
         input.bind("<m-s-f>", "search.searchAllFiles")
+        input.bind("<m-s-e>", "explorer.toggle")
         input.bind("<m-s-_>", "sidebar.decreaseWidth")
         input.bind("<m-s-+>", "sidebar.increaseWidth")
         input.bind("<m-,>", "oni.config.openConfigJs")
@@ -71,6 +76,7 @@ export const applyDefaultKeyBindings = (oni: Oni.Plugin.Api, config: Configurati
         input.bind("<s-c-t>", "language.symbols.document")
         input.bind("<c-tab>", "buffer.toggle")
         input.bind("<s-c-f>", "search.searchAllFiles")
+        input.bind("<s-c-e>", "explorer.toggle")
         input.bind("<c-,>", "oni.config.openConfigJs")
 
         if (config.getValue("editor.clipboard.enabled")) {
@@ -157,4 +163,13 @@ export const applyDefaultKeyBindings = (oni: Oni.Plugin.Api, config: Configurati
     input.bind("j", "browser.scrollDown")
     input.bind("h", "browser.scrollLeft")
     input.bind("l", "browser.scrollRight")
+
+    // VCS
+    input.bind("e", "vcs.openFile", isVCSActive)
+    input.bind("u", "vcs.unstage", isVCSActive)
+    input.bind("<c-r>", "vcs.refresh", isVCSActive)
+    input.bind("?", "vcs.showHelp", isVCSActive)
+
+    // Sessions
+    input.bind("<c-d>", "oni.sessions.delete", areSessionsActive)
 }

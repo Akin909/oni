@@ -8,8 +8,6 @@ export type ActionOrCommand = string | ActionFunction
 
 export type FilterFunction = () => boolean
 
-import { IKeyChord, parseKeysFromVimString } from "./../Input/KeyParser"
-
 export interface KeyBinding {
     action: ActionOrCommand
     filter?: FilterFunction
@@ -127,7 +125,7 @@ export class InputManager implements Oni.Input.InputManager {
     }
 
     // Returns an array of keys bound to a command
-    public getBoundKeys(command: string): string[] {
+    public getBoundKeys = (command: string): string[] => {
         return Object.keys(this._boundKeys).reduce(
             (prev: string[], currentValue: string) => {
                 const bindings = this._boundKeys[currentValue]
@@ -139,10 +137,6 @@ export class InputManager implements Oni.Input.InputManager {
             },
             [] as string[],
         )
-    }
-
-    public parseKeys(keys: string): IKeyChord {
-        return parseKeysFromVimString(keys)
     }
 
     /**

@@ -11,6 +11,7 @@ export type BufferFilter = (buf: Oni.Buffer) => boolean
 
 export interface IBufferLayer extends Oni.BufferLayer {
     handleInput?: (key: string) => boolean
+    isActive?: () => boolean
 }
 
 export const createBufferFilterFromLanguage = (language: string) => (buf: Oni.Buffer): boolean => {
@@ -68,6 +69,13 @@ export class BufferLayerManager {
         this.notifyBufferEnter(buf)
     }
 }
+
+const getInstance = (() => {
+    const instance = new BufferLayerManager()
+    return () => instance
+})()
+
+export default getInstance
 
 export const wrapReactComponentWithLayer = (
     id: string,

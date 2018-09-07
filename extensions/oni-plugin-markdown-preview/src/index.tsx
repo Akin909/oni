@@ -1,6 +1,7 @@
 import { EventCallback, IDisposable, IEvent } from "oni-types"
 
 import * as dompurify from "dompurify"
+import * as hljs from "highlight.js"
 import * as marked from "marked"
 import * as Oni from "oni-api"
 import * as React from "react"
@@ -46,6 +47,7 @@ class MarkdownPreview extends React.PureComponent<IMarkdownPreviewProps, IMarkdo
             codeForeground: this.props.oni.colors.getColor("foreground"),
             codeBorder: this.props.oni.colors.getColor("toolTip.border"),
         }
+
         this.state = { source: "", colors }
     }
 
@@ -58,7 +60,10 @@ class MarkdownPreview extends React.PureComponent<IMarkdownPreviewProps, IMarkdo
 
         this.subscribe(activeEditor.onBufferChanged, args => this.onBufferChanged(args))
         // TODO: Subscribe "onFocusChanged"
-        this.subscribe(activeEditor.onBufferScrolled, args => this.onBufferScrolled(args))
+
+        if (this.props.oni.configuration.getValue("experimental.markdownPreview.autoScroll")) {
+            this.subscribe(activeEditor.onBufferScrolled, args => this.onBufferScrolled(args))
+        }
 
         this.previewBuffer(activeEditor.activeBuffer)
     }
@@ -80,6 +85,9 @@ class MarkdownPreview extends React.PureComponent<IMarkdownPreviewProps, IMarkdo
 
     private generateContainerStyle(): string {
         const colors = this.state.colors
+        const syntaxHighlightTheme = this.props.oni.configuration.getValue(
+            "experimental.markdownPreview.syntaxTheme",
+        )
 
         const codeBlockStyle = `
             background: ${colors.codeBackground};
@@ -91,6 +99,8 @@ class MarkdownPreview extends React.PureComponent<IMarkdownPreviewProps, IMarkdo
         `
 
         return `
+            <link rel="stylesheet" href="node_modules/highlight.js/styles/${syntaxHighlightTheme}.css">
+
             <style>
             .oniPluginMarkdownPreviewContainerStyle {
                 padding: 1em 1em 1em 1em;
@@ -139,6 +149,38 @@ class MarkdownPreview extends React.PureComponent<IMarkdownPreviewProps, IMarkdo
         markdownLines.splice(0, 0, generateAnchor(i))
         markdownLines.push(generateAnchor(originalLinesCount - 1))
 
+        const markedOptions = {
+            baseUrl: this.props.oni.workspace.activeWorkspace,
+            highlight(code, lang) {
+                return code
+            },
+        }
+
+        const highlightsEnabled = this.props.oni.configuration.getValue(
+            "experimental.markdownPreview.syntaxHighlights",
+        )
+
+        if (highlightsEnabled) {
+            markedOptions.highlight = (code, lang) => {
+                const languageExists = hljs.getLanguage(lang)
+                const languageNotDefinedOrInvalid =
+                    typeof lang === "undefined" ||
+                    (typeof languageExists === "undefined" && lang !== "nohighlight")
+
+                if (languageNotDefinedOrInvalid) {
+                    return hljs.highlightAuto(code).value
+                }
+
+                if (lang === "nohighlight") {
+                    return code
+                }
+
+                return hljs.highlight(lang, code).value
+            }
+        }
+
+        marked.setOptions(markedOptions)
+
         return marked(markdownLines.join("\n"))
     }
 
@@ -153,6 +195,10 @@ class MarkdownPreview extends React.PureComponent<IMarkdownPreviewProps, IMarkdo
     }
 
     private onBufferScrolled(args: Oni.EditorBufferScrolledEventArgs): void {
+        if (this.props.oni.editors.activeEditor.activeBuffer.language !== "markdown") {
+            return
+        }
+
         let anchor = null
         for (let line = args.windowTopLine - 1; !anchor && line < args.bufferTotalLines; line++) {
             anchor = document.getElementById(generateScrollingAnchorId(line))
@@ -176,12 +222,14 @@ class MarkdownPreview extends React.PureComponent<IMarkdownPreviewProps, IMarkdo
 
 class MarkdownPreviewEditor implements Oni.IWindowSplit {
     private _open: boolean = false
+    private _manuallyClosed: boolean = false
     private _unrenderedContent: string = ""
     private _renderedContent: string = ""
     private _split: Oni.WindowSplitHandle
 
     constructor(private _oni: Oni.Plugin.Api) {
         this._oni.editors.activeEditor.onBufferEnter.subscribe(args => this.onBufferEnter(args))
+        this._oni.editors.activeEditor.onBufferLeave.subscribe(args => this.onBufferLeave(args))
     }
 
     public isPaneOpen(): boolean {
@@ -203,7 +251,7 @@ class MarkdownPreviewEditor implements Oni.IWindowSplit {
 
     public toggle(): void {
         if (this._open) {
-            this.close()
+            this.close(true)
         } else {
             this.open()
         }
@@ -212,14 +260,19 @@ class MarkdownPreviewEditor implements Oni.IWindowSplit {
     public open(): void {
         if (!this._open) {
             this._open = true
+            this._manuallyClosed = false
+            const editorSplit = this._oni.windows.activeSplitHandle
+
             // TODO: Update API
             this._split = this._oni.windows.createSplit("vertical", this)
+            editorSplit.focus()
         }
     }
 
-    public close(): void {
+    public close(manuallyClosed = false): void {
         if (this._open) {
             this._open = false
+            this._manuallyClosed = manuallyClosed
             this._split.close()
         }
     }
@@ -229,9 +282,13 @@ class MarkdownPreviewEditor implements Oni.IWindowSplit {
     }
 
     private onBufferEnter(bufferInfo: Oni.EditorBufferEventArgs): void {
-        if (bufferInfo.language === "markdown") {
+        if (bufferInfo.language === "markdown" && this._manuallyClosed === false) {
             this.open()
         }
+    }
+
+    private onBufferLeave(bufferInfo: Oni.EditorBufferEventArgs): void {
+        this.close()
     }
 }
 
@@ -259,7 +316,7 @@ export function activate(oni: any): any {
             "Close Markdown Preview",
             "Close the Markdown preview pane if it is not already closed",
             () => {
-                preview.close()
+                preview.close(true)
             },
         ),
     )

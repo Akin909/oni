@@ -1,7 +1,7 @@
 /**
  * OniEditor.ts
  *
- * IEditor implementation for Oni
+ * Editor implementation for Oni
  *
  * Extends the capabilities of the NeovimEditor
  */
@@ -41,8 +41,6 @@ import { ThemeManager } from "./../../Services/Themes"
 import { TokenColors } from "./../../Services/TokenColors"
 import { Workspace } from "./../../Services/Workspace"
 
-import { IEditor } from "./../Editor"
-
 import { BufferScrollBarContainer } from "./containers/BufferScrollBarContainer"
 import { DefinitionContainer } from "./containers/DefinitionContainer"
 import { ErrorsContainer } from "./containers/ErrorsContainer"
@@ -51,7 +49,12 @@ import { NeovimEditor } from "./../NeovimEditor"
 
 import { SplitDirection, windowManager } from "./../../Services/WindowManager"
 
+import { ISession } from "../../Services/Sessions"
+import { IBuffer } from "../BufferManager"
+import { OniWithActiveSection, WelcomeBufferLayer } from "../NeovimEditor/WelcomeBufferLayer"
+import ColorHighlightLayer from "./ColorHighlightLayer"
 import { ImageBufferLayer } from "./ImageBufferLayer"
+import IndentLineBufferLayer from "./IndentGuideBufferLayer"
 
 // Helper method to wrap a react component into a layer
 const wrapReactComponentWithLayer = (id: string, component: JSX.Element): Oni.BufferLayer => {
@@ -61,7 +64,7 @@ const wrapReactComponentWithLayer = (id: string, component: JSX.Element): Oni.Bu
     }
 }
 
-export class OniEditor extends Utility.Disposable implements IEditor {
+export class OniEditor extends Utility.Disposable implements Oni.Editor {
     private _neovimEditor: NeovimEditor
 
     public get mode(): string {
@@ -98,6 +101,10 @@ export class OniEditor extends Utility.Disposable implements IEditor {
 
     public get /* override */ activeBuffer(): Oni.Buffer {
         return this._neovimEditor.activeBuffer
+    }
+
+    public get onQuit(): IEvent<void> {
+        return this._neovimEditor.onNeovimQuit
     }
 
     // Capabilities
@@ -170,11 +177,45 @@ export class OniEditor extends Utility.Disposable implements IEditor {
             wrapReactComponentWithLayer("oni.layer.errors", <ErrorsContainer />),
         )
 
-        const extensions = this._configuration.getValue("editor.imageLayerExtensions")
+        const imageExtensions = this._configuration.getValue("editor.imageLayerExtensions")
+        const bannedIndentExtensions = this._configuration.getValue(
+            "experimental.indentLines.bannedFiletypes",
+        )
+
         this._neovimEditor.bufferLayers.addBufferLayer(
-            buf => extensions.includes(path.extname(buf.filePath)),
+            buf => imageExtensions.includes(path.extname(buf.filePath)),
             buf => new ImageBufferLayer(buf),
         )
+
+        if (this._configuration.getValue("experimental.indentLines.enabled")) {
+            this._neovimEditor.bufferLayers.addBufferLayer(
+                buf => {
+                    const extension = path.extname(buf.filePath)
+                    return extension && !bannedIndentExtensions.includes(extension)
+                },
+                buffer =>
+                    new IndentLineBufferLayer({
+                        buffer: buffer as IBuffer,
+                        configuration: this._configuration,
+                    }),
+            )
+        }
+        if (this._configuration.getValue("experimental.colorHighlight.enabled")) {
+            this._neovimEditor.bufferLayers.addBufferLayer(
+                buf =>
+                    this._configuration
+                        .getValue("experimental.colorHighlight.filetypes")
+                        .includes(path.extname(buf.filePath)),
+                _buf => new ColorHighlightLayer(this._configuration),
+            )
+        }
+
+        this._neovimEditor.onShowWelcomeScreen.subscribe(async () => {
+            const oni = this._pluginManager.getApi()
+            const welcomeBuffer = await this._neovimEditor.createWelcomeBuffer()
+            const welcomeLayer = new WelcomeBufferLayer(oni as OniWithActiveSection)
+            welcomeBuffer.addLayer(welcomeLayer)
+        })
     }
 
     public dispose(): void {
@@ -258,6 +299,18 @@ export class OniEditor extends Utility.Disposable implements IEditor {
 
     public executeCommand(command: string): void {
         this._neovimEditor.executeCommand(command)
+    }
+
+    public restoreSession(sessionDetails: ISession) {
+        return this._neovimEditor.restoreSession(sessionDetails)
+    }
+
+    public getCurrentSession() {
+        return this._neovimEditor.getCurrentSession()
+    }
+
+    public persistSession(sessionDetails: ISession) {
+        return this._neovimEditor.persistSession(sessionDetails)
     }
 
     public getBuffers(): Array<Oni.Buffer | Oni.InactiveBuffer> {

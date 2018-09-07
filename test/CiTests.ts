@@ -8,6 +8,7 @@ import * as mkdirp from "mkdirp"
 import { IFailedTest, Oni, runInProcTest } from "./common"
 
 const LongTimeout = 5000
+
 const CiTests = [
     // Core functionality tests
     "Api.Buffer.AddLayer",
@@ -17,9 +18,13 @@ const CiTests = [
     "AutoCompletionTest-HTML",
     "AutoCompletionTest-TypeScript",
 
+    "Browser.LocationTest",
+
     "Configuration.JavaScriptEditorTest",
     "Configuration.TypeScriptEditor.NewConfigurationTest",
     "Configuration.TypeScriptEditor.CompletionTest",
+
+    "Welcome.BufferLayerTest",
 
     "TabBarSneakTest",
     "initVimPromptNotificationTest",
@@ -30,6 +35,8 @@ const CiTests = [
     "Editor.ScrollEventTest",
     "Editor.TabModifiedState",
     "Editor.CloseTabWithTabModesTabsTest",
+    "Editor.NextPreviousErrorTest",
+    "Explorer.LocateBufferTest",
     "MarkdownPreviewTest",
     "PrettierPluginTest",
     "PaintPerformanceTest",
@@ -39,6 +46,7 @@ const CiTests = [
     "Neovim.CallOniCommands",
     "NoInstalledNeovim",
     "Sidebar.ToggleSplitTest",
+    "LargePasteTest",
 
     "Snippets.BasicInsertTest",
 
@@ -54,6 +62,8 @@ const CiTests = [
     "TextmateHighlighting.DebugScopesTest",
     "TextmateHighlighting.ScopesOnEnterTest",
     "TextmateHighlighting.TokenColorOverrideTest",
+    "IndentGuide.BufferLayerTest",
+    "ColorHighlight.BufferLayerTest",
 
     "Theming.LightAndDarkColorsTest",
 
@@ -87,7 +97,9 @@ const FGYELLOW = "\x1b[33m"
 describe("ci tests", function() {
     const tests = Platform.isWindows()
         ? [...CiTests, ...WindowsOnlyTests]
-        : Platform.isMac() ? [...CiTests, ...OSXOnlyTests] : CiTests
+        : Platform.isMac()
+            ? [...CiTests, ...OSXOnlyTests]
+            : CiTests
 
     const testFailures: IFailedTest[] = []
     tests.forEach(test => {
@@ -103,6 +115,7 @@ describe("ci tests", function() {
                 console.log(FGWHITE, "     Expected:", FGGREEN, failure.expected)
                 console.log(FGWHITE, "     Actual:", FGRED, failure.actual)
                 console.log(FGWHITE, "     Path:", failure.path, "\n")
+                // TODO: Add line number
             })
             console.log("")
         }

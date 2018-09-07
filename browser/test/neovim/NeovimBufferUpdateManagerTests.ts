@@ -2,24 +2,24 @@
  * NeovimBufferUpdateManagerTests.ts
  */
 
-import * as assert from "assert"
-import * as os from "os"
-
-import { EventContext } from "./../../src/neovim"
-import {
-    INeovimBufferUpdate,
-    NeovimBufferUpdateManager,
-} from "./../../src/neovim/NeovimBufferUpdateManager"
-
-import { MockConfiguration, MockNeovimInstance } from "./../Mocks"
-import { waitForAllAsyncOperations } from "./../TestHelpers"
-
-const createTestEventContext = (bufferNumber: number, bufferTotalLines: number): EventContext => {
-    return {
-        bufferNumber,
-        bufferTotalLines,
-    } as any
-}
+// import * as assert from "assert"
+// import * as os from "os"
+//
+// import { EventContext } from "./../../src/neovim"
+// import {
+//     INeovimBufferUpdate,
+//     NeovimBufferUpdateManager,
+// } from "./../../src/neovim/NeovimBufferUpdateManager"
+//
+// import { MockConfiguration, MockNeovimInstance } from "./../Mocks"
+// import { waitForAllAsyncOperations } from "./../TestHelpers"
+//
+// const createTestEventContext = (bufferNumber: number, bufferTotalLines: number): EventContext => {
+//     return {
+//         bufferNumber,
+//         bufferTotalLines,
+//     } as any
+// }
 
 // describe("NeovimBufferUpdateManagerTests", () => {
 //     let configuration: MockConfiguration = null

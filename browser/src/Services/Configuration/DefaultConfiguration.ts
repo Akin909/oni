@@ -53,9 +53,41 @@ const BaseConfiguration: IConfigurationValues = {
     "wildmenu.mode": true,
     "commandline.mode": true,
     "commandline.icons": true,
-    "experimental.particles.enabled": false,
     "experimental.preview.enabled": false,
     "experimental.welcome.enabled": false,
+    "experimental.particles.enabled": false,
+    "experimental.sessions.enabled": false,
+    "experimental.sessions.directory": null,
+    "experimental.vcs.sidebar": false,
+    "experimental.vcs.blame.enabled": false,
+    "experimental.vcs.blame.mode": "auto",
+    "experimental.vcs.blame.timeout": 800,
+
+    "experimental.colorHighlight.enabled": false,
+    "experimental.colorHighlight.filetypes": [
+        ".css",
+        ".js",
+        ".jsx",
+        ".tsx",
+        ".ts",
+        ".re",
+        ".sass",
+        ".scss",
+        ".less",
+        ".pcss",
+        ".sss",
+        ".stylus",
+        ".xml",
+        ".svg",
+    ],
+    "experimental.indentLines.enabled": false,
+    "experimental.indentLines.color": null,
+    "experimental.indentLines.skipFirst": false,
+    "experimental.indentLines.bannedFiletypes": [],
+    "experimental.markdownPreview.enabled": false,
+    "experimental.markdownPreview.autoScroll": true,
+    "experimental.markdownPreview.syntaxHighlights": true,
+    "experimental.markdownPreview.syntaxTheme": "atom-one-dark",
 
     "experimental.neovim.transport": "stdio",
     // TODO: Enable pipe transport for Windows
@@ -109,7 +141,7 @@ const BaseConfiguration: IConfigurationValues = {
 
     "editor.linePadding": 2,
 
-    "editor.quickOpen.execCommand": null,
+    "editor.quickOpen.execCommand": undefined,
     "editor.quickOpen.filterStrategy": "vscode",
     "editor.quickOpen.defaultOpenMode": Oni.FileOpenMode.Edit,
     "editor.quickOpen.alternativeOpenMode": Oni.FileOpenMode.ExistingTab,
@@ -162,6 +194,19 @@ const BaseConfiguration: IConfigurationValues = {
         "css.tmLanguage.json",
     ),
     "language.css.tokenRegex": "[$_a-zA-Z0-9-]",
+
+    "language.elixir.textMateGrammar": {
+        ".ex": path.join(__dirname, "extensions", "elixir", "syntaxes", "elixir.tmLanguage.json"),
+        ".exs": path.join(__dirname, "extensions", "elixir", "syntaxes", "elixir.tmLanguage.json"),
+        ".eex": path.join(__dirname, "extensions", "elixir", "syntaxes", "eex.tmLanguage.json"),
+        ".html.eex": path.join(
+            __dirname,
+            "extensions",
+            "elixir",
+            "syntaxes",
+            "html(eex).tmLanguage.json",
+        ),
+    },
 
     "language.less.languageServer.command": cssLanguageServerPath,
     "language.less.languageServer.arguments": ["--stdio"],
@@ -345,6 +390,13 @@ const BaseConfiguration: IConfigurationValues = {
         ".java": path.join(__dirname, "extensions", "java", "syntaxes", "Java.tmLanguage.json"),
         ".jar": path.join(__dirname, "extensions", "java", "syntaxes", "Java.tmLanguage.json"),
     },
+    "language.cs.textMateGrammar": path.join(
+        __dirname,
+        "extensions",
+        "csharp",
+        "syntaxes",
+        "csharp.tmLanguage.json",
+    ),
     "language.javascript.completionTriggerCharacters": [".", "/", "\\"],
     "language.javascript.textMateGrammar": {
         ".js": path.join(
@@ -419,6 +471,7 @@ const BaseConfiguration: IConfigurationValues = {
     "tabs.showFileIcon": true,
     "tabs.showIndex": false,
     "tabs.wrap": false,
+    "tabs.dirtyMarker.userColor": "",
 
     "terminal.shellCommand": null,
 
@@ -459,7 +512,9 @@ const LinuxConfigOverrides: Partial<IConfigurationValues> = {
 
 const PlatformConfigOverride = Platform.isWindows()
     ? WindowsConfigOverrides
-    : Platform.isLinux() ? LinuxConfigOverrides : MacConfigOverrides
+    : Platform.isLinux()
+        ? LinuxConfigOverrides
+        : MacConfigOverrides
 
 export const DefaultConfiguration = {
     ...BaseConfiguration,

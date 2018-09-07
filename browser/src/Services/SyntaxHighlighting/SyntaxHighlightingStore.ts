@@ -120,9 +120,11 @@ const updateBufferLineMiddleware = (store: any) => (next: any) => (action: any) 
     const result: ISyntaxHighlightAction = next(action)
 
     if (action.type === "SYNTAX_UPDATE_BUFFER_LINE") {
+        console.log("action: ", action)
         const state: ISyntaxHighlightState = store.getState()
         const bufferId = action.bufferId
 
+        console.log("NO Buffer highlights", !state.bufferToHighlights[bufferId])
         if (!state.bufferToHighlights[bufferId]) {
             return result
         }
@@ -132,6 +134,7 @@ const updateBufferLineMiddleware = (store: any) => (next: any) => (action: any) 
         const language = buffer.language
         const extension = buffer.extension
 
+        console.log({ language, extension })
         if (!language || !extension) {
             return result
         }
@@ -140,6 +143,7 @@ const updateBufferLineMiddleware = (store: any) => (next: any) => (action: any) 
             return result
         }
 
+        console.log({ bufferVersion: buffer.version, actionVersion: action.version })
         grammarLoader.getGrammarForLanguage(language, extension).then(grammar => {
             if (!grammar) {
                 return
@@ -159,6 +163,7 @@ const updateBufferLineMiddleware = (store: any) => (next: any) => (action: any) 
                 ),
                 scopes: t.scopes,
             }))
+            console.log("tokens: ", tokens)
 
             const updateInsertLineAction: ISyntaxHighlightAction = {
                 type: "SYNTAX_UPDATE_TOKENS_FOR_LINE_INSERT_MODE",

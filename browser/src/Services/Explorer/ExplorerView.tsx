@@ -7,21 +7,24 @@ import * as React from "react"
 import * as DND from "react-dnd"
 import HTML5Backend from "react-dnd-html5-backend"
 import { connect } from "react-redux"
+import { AutoSizer, CellMeasurer, CellMeasurerCache, List } from "react-virtualized"
 import { compose } from "redux"
 
 import { CSSTransition, TransitionGroup } from "react-transition-group"
 
-import { css, styled } from "./../../UI/components/common"
+import { css, enableMouse, styled } from "./../../UI/components/common"
 import { TextInputView } from "./../../UI/components/LightweightText"
+import { SidebarEmptyPaneView } from "./../../UI/components/SidebarEmptyPaneView"
 import { SidebarContainerView, SidebarItemView } from "./../../UI/components/SidebarItemView"
 import { Sneakable } from "./../../UI/components/Sneakable"
 import { VimNavigator } from "./../../UI/components/VimNavigator"
 import { DragAndDrop, Droppeable } from "./../DragAndDrop"
 
+import { commandManager } from "./../CommandManager"
 import { FileIcon } from "./../FileIcon"
 
 import * as ExplorerSelectors from "./ExplorerSelectors"
-import { IExplorerState } from "./ExplorerStore"
+import { getPathForNode, IExplorerState } from "./ExplorerStore"
 
 type Node = ExplorerSelectors.ExplorerNode
 
@@ -38,20 +41,9 @@ export interface INodeViewProps {
     updated?: string[]
     isRenaming: Node
     isCreating: boolean
+    children?: React.ReactNode
 }
 
-export const NodeWrapper = styled.div`
-    &:hover {
-        text-decoration: underline;
-    }
-`
-
-// tslint:disable-next-line
-const noop = (elem: HTMLElement) => {}
-const scrollIntoViewIfNeeded = (elem: HTMLElement) => {
-    // tslint:disable-next-line
-    elem && elem["scrollIntoViewIfNeeded"] && elem["scrollIntoViewIfNeeded"]()
-}
 const stopPropagation = (fn: () => void) => {
     return (e?: React.MouseEvent<HTMLElement>) => {
         if (e) {
@@ -75,6 +67,13 @@ interface IMoveNode {
     }
 }
 
+export const NodeWrapper = styled.div`
+    cursor: pointer;
+    &:hover {
+        text-decoration: underline;
+    }
+`
+
 const NodeTransitionWrapper = styled.div`
     transition: all 400ms 50ms ease-in-out;
 
@@ -94,12 +93,6 @@ interface ITransitionProps {
     updated: boolean
 }
 
-const Transition = ({ children, updated }: ITransitionProps) => (
-    <CSSTransition in={updated} classNames="move" timeout={1000}>
-        <NodeTransitionWrapper className={updated && "move"}>{children}</NodeTransitionWrapper>
-    </CSSTransition>
-)
-
 const renameStyles = css`
     width: 100%;
     background-color: inherit;
@@ -116,7 +109,13 @@ const createStyles = css`
     margin-top: 0.2em;
 `
 
-export class NodeView extends React.PureComponent<INodeViewProps, {}> {
+const Transition = ({ children, updated }: ITransitionProps) => (
+    <CSSTransition in={updated} classNames="move" timeout={1000}>
+        <NodeTransitionWrapper className={updated && "move"}>{children}</NodeTransitionWrapper>
+    </CSSTransition>
+)
+
+export class NodeView extends React.PureComponent<INodeViewProps> {
     public moveFileOrFolder = ({ drag, drop }: IMoveNode) => {
         this.props.moveFileOrFolder(drag.node, drop.node)
     }
@@ -125,15 +124,12 @@ export class NodeView extends React.PureComponent<INodeViewProps, {}> {
         return !(drag.node.name === drop.node.name)
     }
 
-    public render(): JSX.Element {
+    public render() {
         const { isCreating, isRenaming, isSelected, node } = this.props
         const renameInProgress = isRenaming.name === node.name && isSelected && !isCreating
         const creationInProgress = isCreating && isSelected && !renameInProgress
         return (
-            <NodeWrapper
-                style={{ cursor: "pointer" }}
-                innerRef={this.props.isSelected ? scrollIntoViewIfNeeded : noop}
-            >
+            <NodeWrapper>
                 {renameInProgress ? (
                     <TextInputView
                         styles={renameStyles}
@@ -159,7 +155,7 @@ export class NodeView extends React.PureComponent<INodeViewProps, {}> {
     public hasUpdated = (path: string) =>
         !!this.props.updated && this.props.updated.some(nodePath => nodePath === path)
 
-    public getElement(): JSX.Element {
+    public getElement() {
         const { node } = this.props
         const yanked = this.props.yanked.includes(node.id)
 
@@ -267,15 +263,70 @@ export interface IExplorerViewProps extends IExplorerViewContainerProps {
     nodes: ExplorerSelectors.ExplorerNode[]
     isActive: boolean
     updated: string[]
+    idToSelect: string
 }
 
-import { SidebarEmptyPaneView } from "./../../UI/components/SidebarEmptyPaneView"
+interface ISneakableNode extends IExplorerViewProps {
+    node: Node
+    selectedId: string
+}
 
-import { commandManager } from "./../CommandManager"
+const SneakableNode = ({ node, selectedId, ...props }: ISneakableNode) => (
+    <Sneakable callback={() => props.onClick(node.id)}>
+        <NodeView
+            node={node}
+            isSelected={node.id === selectedId}
+            isCreating={props.isCreating}
+            onCancelCreate={props.onCancelCreate}
+            onCompleteCreate={props.onCompleteCreate}
+            onCompleteRename={props.onCompleteRename}
+            isRenaming={props.isRenaming}
+            onCancelRename={props.onCancelRename}
+            updated={props.updated}
+            yanked={props.yanked}
+            moveFileOrFolder={props.moveFileOrFolder}
+            onClick={() => props.onClick(node.id)}
+        />
+    </Sneakable>
+)
 
-export class ExplorerView extends React.PureComponent<IExplorerViewProps, {}> {
-    public render(): JSX.Element {
+const ExplorerContainer = styled.div`
+    height: 100%;
+    ${enableMouse};
+`
+
+export class ExplorerView extends React.PureComponent<IExplorerViewProps> {
+    private _list = React.createRef<List>()
+
+    private _cache = new CellMeasurerCache({
+        defaultHeight: 30,
+        fixedWidth: true,
+    })
+
+    public openWorkspaceFolder = () => {
+        commandManager.executeCommand("workspace.openFolder")
+    }
+
+    public getSelectedNode = (selectedId: string) => {
+        return this.props.nodes.findIndex(n => selectedId === n.id)
+    }
+
+    public propsChanged(keys: Array<keyof IExplorerViewProps>, prevProps: IExplorerViewProps) {
+        return keys.some(prop => this.props[prop] !== prevProps[prop])
+    }
+
+    public componentDidUpdate(prevProps: IExplorerViewProps) {
+        if (this.propsChanged(["isCreating", "isRenaming", "yanked"], prevProps)) {
+            // TODO: if we could determine which nodes actually were involved
+            // in the change this could potentially be optimised
+            this._cache.clearAll()
+            this._list.current.recomputeRowHeights()
+        }
+    }
+
+    public render() {
         const ids = this.props.nodes.map(node => node.id)
+        const isActive = this.props.isActive && !this.props.isRenaming && !this.props.isCreating
 
         if (!this.props.nodes || !this.props.nodes.length) {
             return (
@@ -283,42 +334,57 @@ export class ExplorerView extends React.PureComponent<IExplorerViewProps, {}> {
                     active={this.props.isActive}
                     contentsText="Nothing to show here, yet!"
                     actionButtonText="Open a Folder"
-                    onClickButton={() => commandManager.executeCommand("workspace.openFolder")}
+                    onClickButton={this.openWorkspaceFolder}
                 />
             )
         }
 
         return (
-            <TransitionGroup>
+            <TransitionGroup style={{ height: "100%" }}>
                 <VimNavigator
                     ids={ids}
-                    active={this.props.isActive && !this.props.isRenaming && !this.props.isCreating}
-                    onSelectionChanged={this.props.onSelectionChanged}
+                    active={isActive}
+                    style={{ height: "100%" }}
+                    idToSelect={this.props.idToSelect}
                     onSelected={id => this.props.onClick(id)}
-                    render={(selectedId: string) => {
-                        const nodes = this.props.nodes.map(node => (
-                            <Sneakable callback={() => this.props.onClick(node.id)} key={node.id}>
-                                <NodeView
-                                    node={node}
-                                    isSelected={node.id === selectedId}
-                                    isCreating={this.props.isCreating}
-                                    onCancelCreate={this.props.onCancelCreate}
-                                    onCompleteCreate={this.props.onCompleteCreate}
-                                    onCompleteRename={this.props.onCompleteRename}
-                                    isRenaming={this.props.isRenaming}
-                                    onCancelRename={this.props.onCancelRename}
-                                    updated={this.props.updated}
-                                    yanked={this.props.yanked}
-                                    moveFileOrFolder={this.props.moveFileOrFolder}
-                                    onClick={() => this.props.onClick(node.id)}
-                                />
-                            </Sneakable>
-                        ))
-
+                    onSelectionChanged={this.props.onSelectionChanged}
+                    render={selectedId => {
                         return (
-                            <div className="explorer enable-mouse">
-                                <div className="items">{nodes}</div>
-                            </div>
+                            <ExplorerContainer className="explorer">
+                                <AutoSizer>
+                                    {measurements => (
+                                        <List
+                                            {...measurements}
+                                            ref={this._list}
+                                            scrollToAlignment="end"
+                                            style={{ outline: "none" }}
+                                            rowCount={this.props.nodes.length}
+                                            rowHeight={this._cache.rowHeight}
+                                            scrollToIndex={this.getSelectedNode(selectedId)}
+                                            rowRenderer={({ index, style, key, parent }) => (
+                                                <CellMeasurer
+                                                    key={key}
+                                                    cache={this._cache}
+                                                    columnIndex={0}
+                                                    parent={parent}
+                                                    rowIndex={index}
+                                                >
+                                                    <div
+                                                        style={style}
+                                                        key={this.props.nodes[index].id}
+                                                    >
+                                                        <SneakableNode
+                                                            {...this.props}
+                                                            selectedId={selectedId}
+                                                            node={this.props.nodes[index]}
+                                                        />
+                                                    </div>
+                                                </CellMeasurer>
+                                            )}
+                                        />
+                                    )}
+                                </AutoSizer>
+                            </ExplorerContainer>
                         )
                     }}
                 />
@@ -327,18 +393,38 @@ export class ExplorerView extends React.PureComponent<IExplorerViewProps, {}> {
     }
 }
 
+const getIdToSelect = (fileToSelect: string, nodes: ExplorerSelectors.ExplorerNode[]) => {
+    // If parent has told us to select a file, attempt to convert the file path into a node ID.
+    if (fileToSelect) {
+        const [nodeToSelect] = nodes.filter(node => {
+            const nodePath = getPathForNode(node)
+            return nodePath === fileToSelect
+        })
+
+        return nodeToSelect ? nodeToSelect.id : null
+    }
+    return null
+}
+
 const mapStateToProps = (
     state: IExplorerState,
     containerProps: IExplorerViewContainerProps,
 ): IExplorerViewProps => {
     const yanked = state.register.yank.map(node => node.id)
-    const { register: { updated, rename } } = state
+    const {
+        register: { updated, rename },
+        fileToSelect,
+    } = state
+
+    const nodes: ExplorerSelectors.ExplorerNode[] = ExplorerSelectors.mapStateToNodeList(state)
+
     return {
         ...containerProps,
         isActive: state.hasFocus,
-        nodes: ExplorerSelectors.mapStateToNodeList(state),
+        nodes,
         updated,
         yanked,
+        idToSelect: getIdToSelect(fileToSelect, nodes),
         isCreating: state.register.create.active,
         isRenaming: rename.active && rename.target,
     }

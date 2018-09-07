@@ -1,7 +1,7 @@
 /**
  * NeovimEditor.ts
  *
- * IEditor implementation for Neovim
+ * Editor implementation for Neovim
  */
 
 import * as os from "os"
@@ -32,6 +32,7 @@ import {
     NeovimInstance,
     NeovimScreen,
     NeovimWindowManager,
+    ScreenWithPredictions,
 } from "./../../neovim"
 import { INeovimRenderer } from "./../../Renderer"
 
@@ -43,6 +44,7 @@ import { Completion, CompletionProviders } from "./../../Services/Completion"
 import { Configuration, IConfigurationValues } from "./../../Services/Configuration"
 import { IDiagnosticsDataSource } from "./../../Services/Diagnostics"
 import { Overlay, OverlayManager } from "./../../Services/Overlay"
+import { ISession } from "./../../Services/Sessions"
 import { SnippetManager } from "./../../Services/Snippets"
 import { TokenColors } from "./../../Services/TokenColors"
 
@@ -65,9 +67,9 @@ import { IThemeMetadata, ThemeManager } from "./../../Services/Themes"
 import { TypingPredictionManager } from "./../../Services/TypingPredictionManager"
 import { Workspace } from "./../../Services/Workspace"
 
-import { Editor, IEditor } from "./../Editor"
+import { Editor } from "./../Editor"
 
-import { BufferManager, IBuffer } from "./../BufferManager"
+import { BufferManager } from "./../BufferManager"
 import { CompletionMenu } from "./CompletionMenu"
 import { HoverRenderer } from "./HoverRenderer"
 import { NeovimPopupMenu } from "./NeovimPopupMenu"
@@ -79,7 +81,7 @@ import { asObservable, normalizePath, sleep } from "./../../Utility"
 
 import * as VimConfigurationSynchronizer from "./../../Services/VimConfigurationSynchronizer"
 
-import { BufferLayerManager } from "./BufferLayerManager"
+import getLayerManagerInstance from "./BufferLayerManager"
 import { Definition } from "./Definition"
 import * as ActionCreators from "./NeovimEditorActions"
 import { NeovimEditorCommands } from "./NeovimEditorCommands"
@@ -92,13 +94,13 @@ import CommandLine from "./../../UI/components/CommandLine"
 import ExternalMenus from "./../../UI/components/ExternalMenus"
 import WildMenu from "./../../UI/components/WildMenu"
 
-import { WelcomeBufferLayer } from "./WelcomeBufferLayer"
-
 import { CanvasRenderer } from "../../Renderer/CanvasRenderer"
 import { WebGLRenderer } from "../../Renderer/WebGL/WebGLRenderer"
 import { getInstance as getNotificationsInstance } from "./../../Services/Notifications"
 
-export class NeovimEditor extends Editor implements IEditor {
+type NeovimError = [number, string]
+
+export class NeovimEditor extends Editor implements Oni.Editor {
     private _bufferManager: BufferManager
     private _neovimInstance: NeovimInstance
     private _renderer: INeovimRenderer
@@ -118,6 +120,7 @@ export class NeovimEditor extends Editor implements IEditor {
     private _modeChanged$: Observable<Oni.Vim.Mode>
     private _cursorMoved$: Observable<Oni.Cursor>
     private _cursorMovedI$: Observable<Oni.Cursor>
+    private _onScroll$: Observable<Oni.EditorBufferScrolledEventArgs>
 
     private _hasLoaded: boolean = false
 
@@ -140,14 +143,20 @@ export class NeovimEditor extends Editor implements IEditor {
     private _toolTipsProvider: IToolTipsProvider
     private _commands: NeovimEditorCommands
     private _externalMenuOverlay: Overlay
-    private _bufferLayerManager: BufferLayerManager
+    private _bufferLayerManager = getLayerManagerInstance()
+    private _screenWithPredictions: ScreenWithPredictions
 
+    private _onShowWelcomeScreen = new Event<void>()
     private _onNeovimQuit: Event<void> = new Event<void>()
 
     private _autoFocus: boolean = true
 
     public get onNeovimQuit(): IEvent<void> {
         return this._onNeovimQuit
+    }
+
+    public get onShowWelcomeScreen() {
+        return this._onShowWelcomeScreen
     }
 
     public get /* override */ activeBuffer(): Oni.Buffer {
@@ -159,7 +168,7 @@ export class NeovimEditor extends Editor implements IEditor {
         return this._neovimInstance
     }
 
-    public get bufferLayers(): BufferLayerManager {
+    public get bufferLayers() {
         return this._bufferLayerManager
     }
 
@@ -198,13 +207,13 @@ export class NeovimEditor extends Editor implements IEditor {
         this._actions = bindActionCreators(ActionCreators as any, this._store.dispatch)
         this._toolTipsProvider = new NeovimEditorToolTipsProvider(this._actions)
 
-        this._bufferLayerManager = new BufferLayerManager()
-
-        this._contextMenuManager = new ContextMenuManager(this._toolTipsProvider, this._colors)
+        this._contextMenuManager = new ContextMenuManager(this._toolTipsProvider)
 
         this._neovimInstance = new NeovimInstance(100, 100, this._configuration)
         this._bufferManager = new BufferManager(this._neovimInstance, this._actions, this._store)
         this._screen = new NeovimScreen()
+
+        this._screenWithPredictions = new ScreenWithPredictions(this._screen, this._configuration)
 
         this._hoverRenderer = new HoverRenderer(this, this._configuration, this._toolTipsProvider)
 
@@ -236,7 +245,6 @@ export class NeovimEditor extends Editor implements IEditor {
             this._neovimInstance.onHidePopupMenu,
             this._neovimInstance.onSelectPopupMenu,
             this.onBufferEnter,
-            this._colors,
             this._toolTipsProvider,
         )
 
@@ -303,7 +311,7 @@ export class NeovimEditor extends Editor implements IEditor {
 
         // Services
         const onColorsChanged = () => {
-            const updatedColors: any = this._colors.getColors()
+            const updatedColors = this._colors.getColors()
             this._actions.setColors(updatedColors)
         }
 
@@ -373,6 +381,9 @@ export class NeovimEditor extends Editor implements IEditor {
 
         this.trackDisposable(
             this._windowManager.onWindowStateChanged.subscribe(tabPageState => {
+                if (!tabPageState) {
+                    return
+                }
                 const filteredTabState = tabPageState.inactiveWindows.filter(w => !!w)
                 const inactiveIds = filteredTabState.map(w => w.windowNumber)
 
@@ -538,6 +549,11 @@ export class NeovimEditor extends Editor implements IEditor {
             this._scheduleRender()
         })
 
+        this._typingPredictionManager.onPredictionsChanged.subscribe(predictions => {
+            this._screenWithPredictions.updatePredictions(predictions, this._screen.cursorRow)
+            this._renderImmediate()
+        })
+
         this.trackDisposable(
             this._neovimInstance.onRedrawComplete.subscribe(() => {
                 const isCursorInCommandRow = this._screen.cursorRow === this._screen.height - 1
@@ -591,6 +607,7 @@ export class NeovimEditor extends Editor implements IEditor {
         })
 
         this._modeChanged$ = asObservable(this._neovimInstance.onModeChanged)
+        this._onScroll$ = asObservable(this._neovimInstance.onScroll)
 
         this.trackDisposable(
             this._neovimInstance.onModeChanged.subscribe(newMode => this._onModeChanged(newMode)),
@@ -631,6 +648,7 @@ export class NeovimEditor extends Editor implements IEditor {
         addInsertModeLanguageFunctionality(
             this._cursorMovedI$,
             this._modeChanged$,
+            this._onScroll$,
             this._toolTipsProvider,
         )
 
@@ -721,7 +739,7 @@ export class NeovimEditor extends Editor implements IEditor {
             this._symbols,
         )
 
-        this._render()
+        this._renderImmediate()
 
         this._onConfigChanged(this._configuration.getValues())
         this.trackDisposable(
@@ -818,6 +836,12 @@ export class NeovimEditor extends Editor implements IEditor {
         this._neovimInstance.autoCommands.executeAutoCommand("FocusLost")
     }
 
+    public async createWelcomeBuffer() {
+        const buf = await this.openFile("WELCOME")
+        await buf.setScratchBuffer()
+        return buf
+    }
+
     public async clearSelection(): Promise<void> {
         await this._neovimInstance.input("<esc>")
         await this._neovimInstance.input("a")
@@ -874,6 +898,31 @@ export class NeovimEditor extends Editor implements IEditor {
         await this._neovimInstance.command(
             `set tabstop=${tabSize} shiftwidth=${tabSize} softtabstop=${tabSize}`,
         )
+    }
+
+    // "v:this_session" |this_session-variable| - is a variable nvim sets to the path of
+    // the current session file when one is loaded we use it here to check the current session
+    // if it in oni's session dir then this is updated
+    public async getCurrentSession(): Promise<string | void> {
+        const result = await this._neovimInstance.request<string | NeovimError>("nvim_get_vvar", [
+            "this_session",
+        ])
+
+        if (Array.isArray(result)) {
+            return this._handleNeovimError(result)
+        }
+        return result
+    }
+
+    public async persistSession(session: ISession) {
+        const result = await this._neovimInstance.command(`mksession! ${session.file}`)
+        return this._handleNeovimError(result)
+    }
+
+    public async restoreSession(session: ISession) {
+        await this._neovimInstance.closeAllBuffers()
+        const result = await this._neovimInstance.command(`source ${session.file}`)
+        return this._handleNeovimError(result)
     }
 
     public async openFile(
@@ -993,8 +1042,7 @@ export class NeovimEditor extends Editor implements IEditor {
             await this.openFiles(filesToOpen, { openMode: Oni.FileOpenMode.Edit })
         } else {
             if (this._configuration.getValue("experimental.welcome.enabled")) {
-                const buf = await this.openFile("WELCOME")
-                buf.addLayer(new WelcomeBufferLayer())
+                this._onShowWelcomeScreen.dispatch()
             }
         }
 
@@ -1059,8 +1107,8 @@ export class NeovimEditor extends Editor implements IEditor {
             <Provider store={this._store}>
                 <NeovimSurface
                     onFileDrop={this._onFilesDropped}
-                    autoFocus={this._autoFocus}
                     renderer={this._renderer}
+                    autoFocus={this._autoFocus}
                     typingPrediction={this._typingPredictionManager}
                     neovimInstance={this._neovimInstance}
                     screen={this._screen}
@@ -1085,10 +1133,10 @@ export class NeovimEditor extends Editor implements IEditor {
         }
 
         // Check if any of the buffer layers can handle the input...
-        const buf: IBuffer = this.activeBuffer as IBuffer
-        const result = buf && buf.handleInput(key)
+        const buf = this.activeBuffer
+        const layerInputHandler = buf && buf.handleInput(key)
 
-        if (result) {
+        if (layerInputHandler) {
             return
         }
 
@@ -1267,19 +1315,31 @@ export class NeovimEditor extends Editor implements IEditor {
         }
 
         this._pendingAnimationFrame = true
-        window.requestAnimationFrame(() => this._render())
+        window.requestAnimationFrame(() => this._renderImmediate())
     }
 
-    private _render(): void {
+    private _renderImmediate(): void {
         this._pendingAnimationFrame = false
 
         if (this._hasLoaded) {
             if (this._isFirstRender) {
                 this._isFirstRender = false
-                this._renderer.redrawAll(this._screen)
+                this._renderer.redrawAll(this._screenWithPredictions as any)
             } else {
-                this._renderer.draw(this._screen)
+                this._renderer.draw(this._screenWithPredictions as any)
             }
+        }
+    }
+
+    private _handleNeovimError(result: NeovimError | void): void {
+        if (!result) {
+            return null
+        }
+        // the first value of the error response is a 0
+        if (Array.isArray(result) && !result[0]) {
+            const [, error] = result
+            Log.warn(error)
+            throw new Error(error)
         }
     }
 }

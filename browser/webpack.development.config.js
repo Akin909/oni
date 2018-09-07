@@ -1,6 +1,9 @@
 var path = require("path")
 var webpack = require("webpack")
 
+const createStyledComponentsTransformer = require("typescript-plugin-styled-components").default
+const styledComponentsTransformer = createStyledComponentsTransformer()
+
 module.exports = {
     mode: "development",
     entry: [path.join(__dirname, "src/index.tsx")],
@@ -12,6 +15,7 @@ module.exports = {
         "keyboard-layout": "require('keyboard-layout')",
         gifshot: "require('gifshot')",
         "msgpack-lite": "require('msgpack-lite')",
+        "simple-git/promise": "require('simple-git/promise')",
         "styled-components": "require('styled-components')",
         fsevents: "require('fsevents')",
     },
@@ -47,7 +51,12 @@ module.exports = {
             },
             {
                 test: /\.tsx?$/,
-                use: "ts-loader",
+                use: {
+                    loader: "ts-loader",
+                    options: {
+                        getCustomTransformers: () => ({ before: [styledComponentsTransformer] }),
+                    },
+                },
                 exclude: /node_modules/,
             },
         ],

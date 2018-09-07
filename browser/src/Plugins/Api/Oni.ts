@@ -28,9 +28,11 @@ import * as LanguageManager from "./../../Services/Language"
 import { getTutorialManagerInstance } from "./../../Services/Learning"
 import { getInstance as getAchievementsInstance } from "./../../Services/Learning/Achievements"
 import { getInstance as getMenuManagerInstance } from "./../../Services/Menu"
+import { getInstance as getFiltersInstance } from "./../../Services/Menu/Filter"
 import { getInstance as getNotificationsInstance } from "./../../Services/Notifications"
 import { getInstance as getOverlayInstance } from "./../../Services/Overlay"
 import { recorder } from "./../../Services/Recorder"
+import { getInstance as getSessionManagerInstance, SessionManager } from "./../../Services/Sessions"
 import { getInstance as getSidebarInstance } from "./../../Services/Sidebar"
 import { getInstance as getSneakInstance } from "./../../Services/Sneak"
 import { getInstance as getSnippetsInstance } from "./../../Services/Snippets"
@@ -38,6 +40,8 @@ import { getInstance as getStatusBarInstance } from "./../../Services/StatusBar"
 import { getInstance as getTokenColorsInstance } from "./../../Services/TokenColors"
 import { windowManager } from "./../../Services/WindowManager"
 import { getInstance as getWorkspaceInstance } from "./../../Services/Workspace"
+
+import { Search } from "./../../Services/Search/SearchProvider"
 
 import * as throttle from "lodash/throttle"
 
@@ -125,6 +129,10 @@ export class Oni implements OniApi.Plugin.Api {
         return getMenuManagerInstance()
     }
 
+    public get filter(): OniApi.Menu.IMenuFilters {
+        return getFiltersInstance("") // TODO: Pass either "core" or plugin's name
+    }
+
     public get notifications(): OniApi.Notifications.Api {
         return getNotificationsInstance()
     }
@@ -161,6 +169,10 @@ export class Oni implements OniApi.Plugin.Api {
         return this._ui
     }
 
+    public get sessions(): SessionManager {
+        return getSessionManagerInstance()
+    }
+
     public get services(): Services {
         return this._services
     }
@@ -177,14 +189,43 @@ export class Oni implements OniApi.Plugin.Api {
         return getWorkspaceInstance()
     }
 
-    public get helpers(): any {
+    public get helpers() {
         return helpers
+    }
+
+    public get search(): OniApi.Search.ISearch {
+        return new Search()
     }
 
     constructor() {
         this._dependencies = new Dependencies()
         this._ui = new Ui(react)
         this._services = new Services()
+    }
+
+    public getActiveSection() {
+        const isInsertOrCommandMode = () => {
+            return (
+                this.editors.activeEditor.mode === "insert" ||
+                this.editors.activeEditor.mode === "cmdline_normal"
+            )
+        }
+        switch (true) {
+            case this.menu.isMenuOpen():
+                return "menu"
+            case this.sidebar && this.sidebar.isFocused:
+                return this.sidebar.activeEntryId
+            case isInsertOrCommandMode():
+                return "commandline"
+            default:
+                return "editor"
+        }
+    }
+
+    public populateQuickFix(entries: OniApi.QuickFixEntry[]): void {
+        const neovim: any = editorManager.activeEditor.neovim
+        neovim.quickFix.setqflist(entries, "Search Results")
+        neovim.command(":copen")
     }
 
     public async execNodeScript(

@@ -9,7 +9,30 @@ import * as os from "os"
 import * as path from "path"
 
 export const getCompletionElement = () => {
-    return getElementByClassName("autocompletion")
+    return getSingleElementBySelector("[data-id='autocompletion']")
+}
+
+interface IGetTab {
+    dirty: boolean
+}
+
+export const getSelectedTabElement = ({ dirty = false }: IGetTab) => {
+    const isDirty = dirty ? "is-dirty" : "not-dirty"
+    return getSingleElementBySelector(`[data-status='tab-selected-${isDirty}']`)
+}
+
+export const getAllTabs = () => {
+    return getElementsBySelector(`[data-id='tab']`)
+}
+
+export const getTabCloseButtonByIndex = (index: number) => {
+    const tabs = getAllTabs()
+    const tab = tabs[index]
+    return tab ? tab.querySelector("[data-id='tab-close-button']") : null
+}
+
+export const getTabsContainer = () => {
+    return getSingleElementBySelector(`[data-id='tabs']`)
 }
 
 export const getCollateralPath = () => {
@@ -90,4 +113,22 @@ export async function insertText(oni: Oni.Plugin.Api, text: string): Promise<voi
     await awaitEditorMode(oni, "insert")
     oni.automation.sendKeys(`${text}<ESC>`)
     await awaitEditorMode(oni, "normal")
+}
+
+/**
+ * Create temporary workspace with a file `src/File.ts` and return workspace directory
+ */
+export async function useTempWorkspace(oni: Oni.Plugin.Api) {
+    // Create our "workspace"
+    const rootPath = getTemporaryFolder()
+    fs.mkdirSync(rootPath)
+    // Create workspace subdir.
+    const directoryPath = path.join(rootPath, "src")
+    fs.mkdirSync(directoryPath)
+    // Create workspace file.
+    const filePath = path.join(directoryPath, "File.ts")
+    fs.writeFileSync(filePath, "")
+    // Switch to workspace.
+    await oni.workspace.changeDirectory(rootPath)
+    return rootPath
 }
