@@ -1,5 +1,5 @@
 // SyntaxHighlightingReducer.ts
-//
+
 // Reducers for handling state changes from ISyntaxHighlightActions
 
 import {
@@ -31,6 +31,9 @@ export const bufferToHighlightsReducer: Reducer<{
     state: { [bufferId: string]: IBufferSyntaxHighlightState } = {},
     action: ISyntaxHighlightAction,
 ) => {
+    if (!action.bufferId) {
+        return state
+    }
     return {
         ...state,
         [action.bufferId]: bufferReducer(state[action.bufferId], action),

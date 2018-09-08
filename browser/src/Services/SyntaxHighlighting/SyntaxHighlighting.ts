@@ -90,27 +90,25 @@ export class SyntaxHighlighter implements ISyntaxHighlighter {
     }
 
     public async notifyBufferUpdate(evt: Oni.EditorBufferChangedEventArgs): Promise<void> {
-        const firstChange = evt.contentChanges[0]
-        if (!firstChange.range && !firstChange.rangeLength) {
-            const lines = firstChange.text.split(os.EOL)
-            this._store.dispatch({
-                type: "SYNTAX_UPDATE_BUFFER",
-                extension: path.extname(evt.buffer.filePath),
-                language: evt.buffer.language,
-                bufferId: evt.buffer.id,
-                lines,
-                version: evt.buffer.version,
-            })
-        } else {
-            // Incremental update
-            this._throttledActions.next({
-                type: "SYNTAX_UPDATE_BUFFER_LINE",
-                bufferId: evt.buffer.id,
-                version: evt.buffer.version,
-                lineNumber: firstChange.range.start.line,
-                line: firstChange.text,
-            })
-        }
+        const [firstChange] = evt.contentChanges
+        const lines = firstChange.text.split(os.EOL)
+        // FIXME: this was previously wrapped with an if statement
+        // need to see if/why its required and how and when it should be called
+        this._store.dispatch({
+            type: "SYNTAX_UPDATE_BUFFER",
+            extension: path.extname(evt.buffer.filePath),
+            language: evt.buffer.language,
+            bufferId: evt.buffer.id,
+            lines,
+            version: evt.buffer.version,
+        })
+        this._throttledActions.next({
+            type: "SYNTAX_UPDATE_BUFFER_LINE",
+            bufferId: evt.buffer.id,
+            version: evt.buffer.version,
+            lineNumber: firstChange.range.start.line,
+            line: firstChange.text,
+        })
     }
 
     public getHighlightTokenAt(

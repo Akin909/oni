@@ -120,11 +120,9 @@ const updateBufferLineMiddleware = (store: any) => (next: any) => (action: any) 
     const result: ISyntaxHighlightAction = next(action)
 
     if (action.type === "SYNTAX_UPDATE_BUFFER_LINE") {
-        console.log("action: ", action)
         const state: ISyntaxHighlightState = store.getState()
         const bufferId = action.bufferId
 
-        console.log("NO Buffer highlights", !state.bufferToHighlights[bufferId])
         if (!state.bufferToHighlights[bufferId]) {
             return result
         }
@@ -134,7 +132,6 @@ const updateBufferLineMiddleware = (store: any) => (next: any) => (action: any) 
         const language = buffer.language
         const extension = buffer.extension
 
-        console.log({ language, extension })
         if (!language || !extension) {
             return result
         }
@@ -143,7 +140,7 @@ const updateBufferLineMiddleware = (store: any) => (next: any) => (action: any) 
             return result
         }
 
-        console.log({ bufferVersion: buffer.version, actionVersion: action.version })
+        // console.log({ bufferVersion: buffer.version, actionVersion: action.version })
         grammarLoader.getGrammarForLanguage(language, extension).then(grammar => {
             if (!grammar) {
                 return
@@ -154,14 +151,14 @@ const updateBufferLineMiddleware = (store: any) => (next: any) => (action: any) 
                 action.lineNumber === 0 ? null : buffer.lines[action.lineNumber - 1].ruleStack
             const tokenizeResult = grammar.tokenizeLine(action.line, previousRuleStack)
 
-            const tokens = tokenizeResult.tokens.map((t: any) => ({
+            const tokens = tokenizeResult.tokens.map(token => ({
                 range: types.Range.create(
                     action.lineNumber,
-                    t.startIndex,
+                    token.startIndex,
                     action.lineNumber,
-                    t.endIndex,
+                    token.endIndex,
                 ),
-                scopes: t.scopes,
+                scopes: token.scopes,
             }))
             console.log("tokens: ", tokens)
 

@@ -78,13 +78,9 @@ export class NeovimBufferUpdateManager {
     }
 
     private _shouldSubscribeToUpdates(context: EventContext): boolean {
-        if (
+        return !(
             context.bufferTotalLines >
             this._configuration.getValue("editor.maxLinesForLanguageServices")
-        ) {
-            return false
-        }
-
-        return true
+        )
     }
 }
