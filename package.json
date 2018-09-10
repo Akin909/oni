@@ -778,9 +778,12 @@
             }
         ]
     },
+    "lint-staged": {
+        "*.{ts,tsx}": ["pretty-quick --staged","yarn lint", "git add"]
+    },
     "scripts": {
-        "precommit": "pretty-quick --staged",
-        "prepush": "yarn run build && yarn run lint",
+        "precommit": "lint-staged",
+        "prepush": "yarn run build",
         "build": "yarn run build:browser && yarn run build:webview_preload && yarn run build:main && yarn run build:plugins && yarn run build:cli",
         "build-debug": "yarn run build:browser-debug && yarn run build:main  && yarn run build:plugins",
         "build:browser": "webpack --config browser/webpack.production.config.js",
@@ -962,6 +965,7 @@
         "less": "2.7.1",
         "less-loader": "^4.1.0",
         "less-plugin-autoprefix": "1.5.1",
+        "lint-staged": "^7.2.2",
         "lodash": "4.17.0",
         "lolex": "2.3.1",
         "memory-fs": "^0.4.1",
