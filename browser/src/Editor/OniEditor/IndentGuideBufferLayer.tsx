@@ -70,37 +70,34 @@ interface IIndentLineState {
     visibleLines: string[]
 }
 
-const cache = new Map<number, string>()
+const cache = new Map<string, IndentLinesProps>()
 
-const getLinesFromCache = (topLine: number, propLines: string[], stateLines: string[]) => {
-    propLines.forEach((line, index) => {
-        const currentLineNumber = topLine + index
-        if (!cache.has(currentLineNumber)) {
-            cache.set(topLine, line)
-        }
-    })
-    return cache.values()
+const addSingleLineToCache = (line: string, indents: IndentLinesProps) => {
+    if (!cache.has(line)) {
+        cache.set(line, indents)
+    }
+}
+
+// const addIndentsToCache = (lines: string[], indents: IndentLinesProps) => {
+//     lines.forEach(line => addSingleLineToCache(line, indents))
+// }
+
+const getDiffFromCache = (
+    lines: string[],
+): Array<{ line: string; cachedValue: IndentLinesProps }> => {
+    if (!cache.size) {
+        return lines.map(line => ({ line, cachedValue: null }))
+    }
+    return lines.map(
+        line =>
+            !cache.has(line) ? { line, cachedValue: null } : { line, cachedValue: cache.get(line) },
+    )
 }
 
 class IndentGuideLines extends React.Component<IIndentLineProps, IIndentLineState> {
-    public state = {
-        visibleLines: getLinesFromCache(
-            this.props.context.topBufferLine,
-            this.props.context.visibleLines,
-        ),
-    }
+    public state = { visibleLines: this.props.context.visibleLines }
 
-    public static getDerivedStateFromProps(prevProps: IIndentLineProps) {
-        console.log("cache: ", cache)
-        return {
-            visibleLines: getLinesFromCache(
-                prevProps.context.topBufferLine,
-                prevProps.context.visibleLines,
-            ),
-        }
-    }
-
-    componentShouldUpdate(prevProps: IIndentLineProps) {
+    shouldComponentUpdate(prevProps: IIndentLineProps) {
         return !isEqual(prevProps.context.visibleLines, this.props.context.visibleLines)
     }
 
@@ -212,8 +209,13 @@ class IndentGuideLines extends React.Component<IIndentLineProps, IIndentLineStat
         const indentSize = this.props.userSpacing * fontPixelWidth
 
         // TODO: implement caching
-        const { allIndentations } = visibleLines.reduce(
-            (acc, line, currenLineNumber) => {
+        const linesToCalculate = getDiffFromCache(visibleLines)
+        const { allIndentations } = linesToCalculate.reduce(
+            (acc, { line, cachedValue }, currentLineNumber) => {
+                if (cachedValue) {
+                    acc.allIndentations.push(cachedValue)
+                    return acc
+                }
                 const rawIndentation = detectIndent(line)
 
                 const regularisedIndent = this._regulariseIndentation(rawIndentation)
@@ -237,7 +239,7 @@ class IndentGuideLines extends React.Component<IIndentLineProps, IIndentLineStat
 
                 const { pixelX: left, pixelY: top } = bufferLayerContext.screenToPixel({
                     screenX: startPosition.screenX,
-                    screenY: currenLineNumber,
+                    screenY: currentLineNumber,
                 })
 
                 const adjustedTop = top + acc.wrappedHeightAdjustment
@@ -266,6 +268,7 @@ class IndentGuideLines extends React.Component<IIndentLineProps, IIndentLineStat
                     indentBy: regularisedIndent / this.props.userSpacing,
                 }
 
+                addSingleLineToCache(line, indent)
                 acc.allIndentations.push(indent)
 
                 return acc
@@ -276,7 +279,7 @@ class IndentGuideLines extends React.Component<IIndentLineProps, IIndentLineStat
         return this._getIndentLines(allIndentations, options)
     }
     render() {
-        console.log("RENDERING!!!!!")
+        console.log("RENDERING!!!!!", cache)
         return this._renderIndentLines(this.props.context)
     }
 }
