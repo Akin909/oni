@@ -3,6 +3,7 @@ import * as React from "react"
 import * as detectIndent from "detect-indent"
 import * as flatten from "lodash/flatten"
 import * as last from "lodash/last"
+import * as isEqual from "lodash/isEqual"
 import * as memoize from "lodash/memoize"
 import * as Oni from "oni-api"
 
@@ -59,26 +60,48 @@ interface IndentLayerArgs {
     configuration: Oni.Configuration
 }
 
-class IndentGuideBufferLayer implements Oni.BufferLayer {
-    public render = memoize((bufferLayerContext: Oni.BufferLayerRenderContext) => {
-        return <Container id={this.id}>{this._renderIndentLines(bufferLayerContext)}</Container>
+interface IIndentLineProps {
+    userSpacing: number
+    configuration: Oni.Configuration
+    context: Oni.BufferLayerRenderContext
+}
+
+interface IIndentLineState {
+    visibleLines: string[]
+}
+
+const cache = new Map<number, string>()
+
+const getLinesFromCache = (topLine: number, propLines: string[], stateLines: string[]) => {
+    propLines.forEach((line, index) => {
+        const currentLineNumber = topLine + index
+        if (!cache.has(currentLineNumber)) {
+            cache.set(topLine, line)
+        }
     })
+    return cache.values()
+}
 
-    private _buffer: IBuffer
-    private _userSpacing: number
-    private _configuration: Oni.Configuration
-
-    constructor({ buffer, configuration }: IndentLayerArgs) {
-        this._buffer = buffer
-        this._configuration = configuration
-        this._userSpacing = this._buffer.shiftwidth || this._buffer.tabstop
-    }
-    get id() {
-        return "indent-guides"
+class IndentGuideLines extends React.Component<IIndentLineProps, IIndentLineState> {
+    public state = {
+        visibleLines: getLinesFromCache(
+            this.props.context.topBufferLine,
+            this.props.context.visibleLines,
+        ),
     }
 
-    get friendlyName() {
-        return "Indent Guide Lines"
+    public static getDerivedStateFromProps(prevProps: IIndentLineProps) {
+        console.log("cache: ", cache)
+        return {
+            visibleLines: getLinesFromCache(
+                prevProps.context.topBufferLine,
+                prevProps.context.visibleLines,
+            ),
+        }
+    }
+
+    componentShouldUpdate(prevProps: IIndentLineProps) {
+        return !isEqual(prevProps.context.visibleLines, this.props.context.visibleLines)
     }
 
     private _getIndentLines = (guidePositions: IndentLinesProps[], options: ConfigOptions) => {
@@ -161,7 +184,7 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
     }
 
     private _regulariseIndentation(indentation: detectIndent.IndentInfo) {
-        const isOddBy = indentation.amount % this._userSpacing
+        const isOddBy = indentation.amount % this.props.userSpacing
         const amountToIndent = isOddBy ? indentation.amount - isOddBy : indentation.amount
         return amountToIndent
     }
@@ -179,13 +202,16 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
         const wrappedScreenLines = this._getWrappedLines(bufferLayerContext)
 
         const options = {
-            color: this._configuration.getValue<string>("experimental.indentLines.color"),
-            skipFirst: this._configuration.getValue<boolean>("experimental.indentLines.skipFirst"),
+            color: this.props.configuration.getValue<string>("experimental.indentLines.color"),
+            skipFirst: this.props.configuration.getValue<boolean>(
+                "experimental.indentLines.skipFirst",
+            ),
         }
 
         const { visibleLines, fontPixelHeight, fontPixelWidth, topBufferLine } = bufferLayerContext
-        const indentSize = this._userSpacing * fontPixelWidth
+        const indentSize = this.props.userSpacing * fontPixelWidth
 
+        // TODO: implement caching
         const { allIndentations } = visibleLines.reduce(
             (acc, line, currenLineNumber) => {
                 const rawIndentation = detectIndent(line)
@@ -237,7 +263,7 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
                     top: adjustedTop,
                     height: adjustedHeight,
                     characterWidth: fontPixelWidth,
-                    indentBy: regularisedIndent / this._userSpacing,
+                    indentBy: regularisedIndent / this.props.userSpacing,
                 }
 
                 acc.allIndentations.push(indent)
@@ -248,6 +274,41 @@ class IndentGuideBufferLayer implements Oni.BufferLayer {
         )
 
         return this._getIndentLines(allIndentations, options)
+    }
+    render() {
+        console.log("RENDERING!!!!!")
+        return this._renderIndentLines(this.props.context)
+    }
+}
+
+class IndentGuideBufferLayer implements Oni.BufferLayer {
+    public render = memoize((bufferLayerContext: Oni.BufferLayerRenderContext) => {
+        return (
+            <Container id={this.id}>
+                <IndentGuideLines
+                    context={bufferLayerContext}
+                    userSpacing={this._userSpacing}
+                    configuration={this._configuration}
+                />
+            </Container>
+        )
+    })
+
+    private _buffer: IBuffer
+    private _userSpacing: number
+    private _configuration: Oni.Configuration
+
+    constructor({ buffer, configuration }: IndentLayerArgs) {
+        this._buffer = buffer
+        this._configuration = configuration
+        this._userSpacing = this._buffer.shiftwidth || this._buffer.tabstop
+    }
+    get id() {
+        return "indent-guides"
+    }
+
+    get friendlyName() {
+        return "Indent Guide Lines"
     }
 }
 
