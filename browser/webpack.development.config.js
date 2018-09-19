@@ -73,6 +73,7 @@ module.exports = {
         publicPath: "http://localhost:8191/",
         filename: "bundle.js",
         chunkFilename: "[name].bundle.js",
+        globalObject: "this",
     },
     node: {
         process: false,

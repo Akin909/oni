@@ -4,22 +4,22 @@
  * Handles enhanced syntax highlighting
  */
 
+import * as Log from "oni-core-logging"
 import { Store } from "redux"
 import * as types from "vscode-languageserver-types"
 import { StackElement } from "vscode-textmate"
 
-import * as Log from "oni-core-logging"
-
-import * as PeriodicJobs from "./../../PeriodicJobs"
+import JobWorker from "./../../Services/Workers/SyntaxHighlighting.worker"
+// import * as PeriodicJobs from "./../../PeriodicJobs"
 import { createStore } from "./../../Redux"
 import { configuration } from "./../Configuration"
 
 import { GrammarLoader } from "./GrammarLoader"
-import { SyntaxHighlightingPeriodicJob } from "./SyntaxHighlightingPeriodicJob"
+// import { SyntaxHighlightingPeriodicJob } from "./SyntaxHighlightingPeriodicJob"
 import { reducer } from "./SyntaxHighlightingReducer"
 import * as Selectors from "./SyntaxHighlightSelectors"
 
-const syntaxHighlightingJobs = new PeriodicJobs.PeriodicJobManager()
+// const syntaxHighlightingJobs = new PeriodicJobs.PeriodicJobManager()
 
 export interface ISyntaxHighlightTokenInfo {
     scopes: string[]
@@ -113,6 +113,7 @@ export type ISyntaxHighlightAction =
       }
 
 const grammarLoader = new GrammarLoader()
+const worker: Worker = new JobWorker()
 
 // Middleware that handles insert-mode updates
 // For insert-mode updates, we'll resolve them immediately and apply them ephemerally
@@ -180,6 +181,11 @@ const updateBufferLineMiddleware = (store: any) => (next: any) => (action: any) 
 const updateTokenMiddleware = (store: any) => (next: any) => (action: any) => {
     const result: ISyntaxHighlightAction = next(action)
 
+    worker.addEventListener("message", data => {
+        console.log("data: ", data)
+        store.dispatch(data)
+    })
+
     if (action.type === "SYNTAX_UPDATE_BUFFER" || action.type === "SYNTAX_UPDATE_BUFFER_VIEWPORT") {
         const state: ISyntaxHighlightState = store.getState()
         const bufferId = action.bufferId
@@ -210,15 +216,26 @@ const updateTokenMiddleware = (store: any) => (next: any) => (action: any) => {
 
             const relevantRange = Selectors.getRelevantRange(state, bufferId)
 
-            syntaxHighlightingJobs.startJob(
-                new SyntaxHighlightingPeriodicJob(
-                    store as any,
-                    action.bufferId,
-                    grammar,
-                    relevantRange.top,
-                    relevantRange.bottom,
-                ),
-            )
+            console.log("worker: ", worker)
+            worker.postMessage({
+                currentWindow: Selectors.getRelevantRange(state, action.bufferId),
+                currentState: store.getState(),
+                topLine: relevantRange.top,
+                bottomLine: relevantRange.bottom,
+                bufferId: action.bufferId,
+                language,
+                extension,
+            })
+
+            // syntaxHighlightingJobs.startJob(
+            //     new SyntaxHighlightingPeriodicJob(
+            //         store as any,
+            //         action.bufferId,
+            //         grammar,
+            //         relevantRange.top,
+            //         relevantRange.bottom,
+            //     ),
+            // )
         })
     }
 
