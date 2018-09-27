@@ -9,6 +9,7 @@ import * as React from "react"
 
 import * as Oni from "oni-api"
 
+import styled, { themeGet } from "./../../UI/components/common"
 import { Icon } from "./../../UI/Icon"
 
 export class LanguageClientStatusBar {
@@ -51,11 +52,6 @@ const SpinnerIcon = "circle-o-notch"
 const ConnectedIcon = "bolt"
 const ErrorIcon = "exclamation-circle"
 
-interface StatusBarRendererProps {
-    state: LanguageClientState
-    language: string
-}
-
 const getIconFromStatus = (status: LanguageClientState) => {
     switch (status) {
         case LanguageClientState.NotAvailable:
@@ -78,42 +74,51 @@ const getClassNameFromstatus = (status: LanguageClientState) => {
     }
 }
 
-const StatusBarRenderer = (props: StatusBarRendererProps) => {
-    const containerStyle: React.CSSProperties = {
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        height: "100%",
-        backgroundColor: "rgb(35, 35, 35)",
-        color: "rgb(200, 200, 200)",
-        paddingRight: "8px",
-        paddingLeft: "8px",
-    }
+interface StatusBarRendererProps {
+    state: LanguageClientState
+    language: string
+}
 
-    const iconStyle: React.CSSProperties = {
-        paddingRight: "6px",
-        minWidth: "14px",
-        textAlign: "center",
-    }
+const StatusBarItem = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    background-color: ${themeGet(
+        "statusBar.item.language.background",
+        "statusBar.item.background",
+    )};
+    color: ${themeGet("statusBar.item.language.foreground", "statusBar.item.foreground")};
+    padding-right: 8px;
+    padding-left: 8px;
+`
 
-    const openDevTools = () => {
-        electron.remote.getCurrentWindow().webContents.openDevTools()
-    }
+const Language = styled.span``
 
+const IconContainer = styled.span`
+    padding-right: 6px;
+    min-width: 14px;
+    text-align: center;
+`
+
+const openDevTools = () => {
+    electron.remote.getCurrentWindow().webContents.openDevTools()
+}
+
+const StatusBarRenderer: React.SFC<StatusBarRendererProps> = props => {
     const onClick = props.state === LanguageClientState.Error ? openDevTools : null
-
     const iconName = getIconFromStatus(props.state)
 
     const icon = iconName ? (
-        <span style={iconStyle}>
+        <IconContainer>
             <Icon name={iconName} className={getClassNameFromstatus(props.state)} />
-        </span>
+        </IconContainer>
     ) : null
 
     return (
-        <div style={containerStyle} onClick={onClick}>
+        <StatusBarItem onClick={onClick}>
             {icon}
-            <span>{props.language}</span>
-        </div>
+            <Language>{props.language}</Language>
+        </StatusBarItem>
     )
 }

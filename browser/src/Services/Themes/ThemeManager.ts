@@ -76,6 +76,10 @@ export interface IThemeColors {
 
     "statusBar.background": string
     "statusBar.foreground": string
+    "statusBar.item.foreground": string
+    "statusBar.item.background": string
+    "statusBar.item.language.foreground": string
+    "statusBar.item.language.background": string
 
     "title.background": string
     "title.foreground": string
@@ -280,6 +284,10 @@ export const DefaultThemeColors: IThemeColors = {
 
     "statusBar.background": StatusBarBackground,
     "statusBar.foreground": StatusBarForeground,
+    "statusBar.item.background": StatusBarBackground,
+    "statusBar.item.foreground": StatusBarForeground,
+    "statusBar.item.language.foreground": null,
+    "statusBar.item.language.background": null,
 
     "sidebar.background": ColorBlack,
     "sidebar.foreground": ColorWhite,
