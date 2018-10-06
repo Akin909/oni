@@ -28,6 +28,7 @@ import { PromiseQueue } from "./../Services/Language/PromiseQueue"
 import { TokenColor } from "./../Services/TokenColors"
 import { INeovimBufferUpdate, NeovimBufferUpdateManager } from "./NeovimBufferUpdateManager"
 import { NeovimTokenColorSynchronizer } from "./NeovimTokenColorSynchronizer"
+import { NeovimEvents } from "./NeovimEvents"
 
 import {
     IVimHighlight,
@@ -76,7 +77,6 @@ export interface INeovimCompletionInfo {
 export type CommandLineContent = [any, string]
 
 export type MapcheckModes = "n" | "v" | "i"
-
 interface IMapping {
     key: string
     mode: MapcheckModes
@@ -774,37 +774,44 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
         return { rows, cols }
     }
 
-    private _handleNotification(_method: any, args: any): void {
+    private _handleNotification(_method: string, notifications: NeovimEvents[]): void {
         if (this._isDisposed) {
             Log.warn(`[NeovimInstance] - ignoring ${_method} because disposed`)
             return
         }
+        console.log("notifications: ", notifications)
+        console.log("method: ", _method)
+        // FIXME: typescript 3.0 can handle narrowing of tuple types
 
-        args.forEach((a: any[]) => {
-            const command = a[0]
-            a = a.slice(1)
+        notifications.forEach(notification => {
+            const [command] = notification
+            const args: any = notification.slice(1)
+            console.log("args: ", args)
 
             switch (command) {
-                case "cursor_goto":
-                    this.emit("action", Actions.createCursorGotoAction(a[0][0], a[0][1]))
+                case "grid_cursor_goto":
+                    this.emit("action", Actions.createCursorGotoAction(args[0][0], args[0][1]))
                     break
-                case "put":
-                    const charactersToPut = a.map(v => v[0])
-                    this.emit("action", Actions.put(charactersToPut))
+                // case "put":
+                //     const charactersToPut = args.map(v => v[0])
+                //     this.emit("action", Actions.put(charactersToPut))
+                //     break
+                // case "set_scroll_region":
+                //     const param = args[0]
+                //     this.emit(
+                //         "action",
+                //         Actions.setScrollRegion(param[0], param[1], param[2], param[3]),
+                //     )
+                //     break
+                case "grid_line":
+                    console.log("args: ", args)
                     break
-                case "set_scroll_region":
-                    const param = a[0]
-                    this.emit(
-                        "action",
-                        Actions.setScrollRegion(param[0], param[1], param[2], param[3]),
-                    )
-                    break
-                case "scroll":
-                    this.emit("action", Actions.scroll(a[0][0]))
+                case "grid_scroll":
+                    this.emit("action", Actions.scroll(args[0][0]))
                     this._dispatchScrollEvent()
                     break
-                case "highlight_set":
-                    const highlightInfo = a[a.length - 1][0]
+                case "hl_attr_define":
+                    const highlightInfo = args[args.length - 1][0]
 
                     this.emit(
                         "action",
@@ -820,43 +827,41 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
                         ),
                     )
                     break
-                case "resize":
-                    this.emit("action", Actions.resize(a[0][0], a[0][1]))
+                case "grid_resize":
+                    this.emit("action", Actions.resize(args[0][0], args[0][1]))
                     break
                 case "set_title":
-                    this._onTitleChanged.dispatch(a[0][0])
+                    this._onTitleChanged.dispatch(args[0][0])
                     break
                 case "set_icon":
                     // window title when minimized, no-op
                     break
-                case "eol_clear":
-                    this.emit("action", Actions.clearToEndOfLine())
-                    break
-                case "clear":
+                // case "eol_clear":
+                //     this.emit("action", Actions.clearToEndOfLine())
+                //     break
+                case "grid_clear":
                     this.emit("action", Actions.clear())
                     break
                 case "mouse_on":
                     // TODO
                     break
-                case "update_bg":
-                    this.emit("action", Actions.updateBackground(a[0][0]))
-                    break
-                case "update_fg":
-                    this.emit("action", Actions.updateForeground(a[0][0]))
+                case "default_colors_set":
+                    this.emit("action", Actions.updateBackground(args[0][0]))
+                    this.emit("action", Actions.updateForeground(args[0][0]))
                     break
                 case "mode_change":
-                    const newMode = a[a.length - 1][0]
+                    const newMode = args[args.length - 1][0]
                     this.emit("action", Actions.changeMode(newMode))
                     this._onModeChanged.dispatch(newMode as Oni.Vim.Mode)
                     break
                 case "popupmenu_select":
-                    this._onSelectPopupMenu.dispatch(a[0][0])
+                    this._onSelectPopupMenu.dispatch(args[0][0])
                     break
                 case "popupmenu_hide":
                     this._onHidePopupMenu.dispatch()
                     break
                 case "popupmenu_show":
-                    const [items, selected, row, col] = a[0]
+                    const [items, selected, row, col] = args
 
                     const mappedItems = items.map((item: string[]) => {
                         const [word, kind, menu, info] = item
@@ -878,7 +883,7 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
                     this._onShowPopupMenu.dispatch(completionInfo)
                     break
                 case "tabline_update":
-                    const [currentTab, tabs] = a[0]
+                    const [currentTab, tabs] = args[0]
                     const mappedTabs: any = tabs.map((t: any) => ({
                         id: t.tab.id,
                         name: t.name,
@@ -894,7 +899,7 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
                     break
                 case "cmdline_show":
                     {
-                        const [content, pos, firstc, prompt, indent, level] = a[0]
+                        const [content, pos, firstc, prompt, indent, level] = args
                         const commandLineShowInfo: INeovimCommandLineShowEvent = {
                             content,
                             pos,
@@ -908,7 +913,7 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
                     break
                 case "cmdline_pos":
                     {
-                        const [pos, level] = a[0]
+                        const [pos, level] = args[0]
                         const commandLinePositionInfo: INeovimCommandLineSetCursorPosition = {
                             pos,
                             level,
@@ -920,17 +925,17 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
                     this._onCommandLineHideEvent.dispatch()
                     break
                 case "wildmenu_show":
-                    const [[options]] = a
+                    const [[options]] = args
                     this._onWildMenuShowEvent.dispatch({ options })
                     break
                 case "wildmenu_select":
-                    const [[selection]] = a
+                    const [[selection]] = args
                     this._onWildMenuSelectEvent.dispatch({ selected: selection })
                     break
                 case "wildmenu_hide":
                     this._onWildMenuHideEvent.dispatch()
                     break
-                case "update_sp":
+                // case "update_sp":
                 case "mode_info_set":
                 case "busy_start":
                 case "busy_stop":
@@ -1060,6 +1065,7 @@ export class NeovimInstance extends EventEmitter implements INeovimInstance {
             const useExtWildMenu = this._configuration.getValue("wildmenu.mode")
             return {
                 rgb: true,
+                ext_linegrid: true,
                 popupmenu_external: shouldExtPopups,
                 ext_tabline: shouldExtTabs,
                 ext_cmdline: useExtCmdLine,
