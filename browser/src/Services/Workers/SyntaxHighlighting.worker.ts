@@ -11,7 +11,7 @@ import * as Log from "oni-core-logging"
 import { GrammarLoader } from "./../SyntaxHighlighting/GrammarLoader"
 import * as SyntaxHighlighting from "./../SyntaxHighlighting/SyntaxHighlightingStore"
 
-const WorkerContext: Worker = self as any
+const worker: Worker = self as any
 global.process = process
 
 interface ITokenizeDirtyLine {
@@ -125,7 +125,7 @@ function tokenizeFirstDirtyLine({
 
         const ruleStack = tokenizeResult.ruleStack
 
-        WorkerContext.postMessage({
+        worker.postMessage({
             type: "SYNTAX_UPDATE_TOKENS_FOR_LINE",
             bufferId: state.bufferId,
             lineNumber: index,
@@ -136,7 +136,7 @@ function tokenizeFirstDirtyLine({
     }
 }
 
-WorkerContext.addEventListener("message", ({ data }) => {
+worker.addEventListener("message", ({ data }) => {
     console.log("data: ", data)
     execute(data)
 })
