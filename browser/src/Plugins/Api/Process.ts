@@ -5,18 +5,14 @@ import * as Log from "oni-core-logging"
 
 import * as Platform from "./../../Platform"
 import { configuration } from "./../../Services/Configuration"
+import * as ShellEnv from "./shellEnv"
 
 export interface IShellEnvironmentFetcher {
     getEnvironmentVariables(): Promise<any>
 }
 
 export class ShellEnvironmentFetcher implements IShellEnvironmentFetcher {
-    private _shellEnvPromise: Promise<any>
-    private _shellEnv: any
-
-    constructor() {
-        this._shellEnvPromise = import("shell-env")
-    }
+    constructor() {}
 
     private _logFailure(error: Error) {
         Log.warn(
@@ -27,14 +23,11 @@ export class ShellEnvironmentFetcher implements IShellEnvironmentFetcher {
     }
 
     private async _fetchEnvironmentVariables(): Promise<NodeJS.ProcessEnv> {
-        if (!this._shellEnv) {
-            this._shellEnv = await this._shellEnvPromise
-            try {
-                const env = this._shellEnv.default.sync()
-                return env
-            } catch (error) {
-                this._logFailure(error)
-            }
+        try {
+            const env = ShellEnv.sync()
+            return env
+        } catch (error) {
+            this._logFailure(error)
         }
         return {}
     }
@@ -42,9 +35,9 @@ export class ShellEnvironmentFetcher implements IShellEnvironmentFetcher {
     private async _getEmptyEnvironment(): Promise<NodeJS.ProcessEnv> {
         return new Promise<NodeJS.ProcessEnv>(resolve => {
             setTimeout(() => {
-                this._logFailure(new Error("Shell env fetch request timeout out after 150ms"))
+                this._logFailure(new Error("Shell env fetch request timeouted out after 150ms"))
                 resolve({})
-            }, 150)
+            }, 1000)
         })
     }
 
